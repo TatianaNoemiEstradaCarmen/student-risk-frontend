@@ -1,65 +1,229 @@
-import Image from "next/image";
+'use client'
 
-export default function Home() {
+import { useState } from 'react'
+import { Eye, EyeOff, Lock, Mail, Users } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+
+export default function LoginPage() {
+  const [showPassword, setShowPassword] = useState(false)
+  const [role, setRole] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setTimeout(() => setIsLoading(false), 1500)
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="flex min-h-screen bg-background">
+      {/* Left Side - Illustration & Statistics */}
+      <div className="hidden w-1/2 flex-col justify-between bg-gradient-to-br from-primary/20 via-background to-background p-12 lg:flex">
+        {/* Logo */}
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-secondary">
+            <span className="text-sm font-bold text-white">E</span>
+          </div>
+          <span className="text-xl font-bold text-foreground">EduSupport AI</span>
+        </div>
+
+        {/* Center Content */}
+        <div className="flex flex-col items-start gap-12">
+          {/* Illustration Placeholder - Modern Academic Visualization */}
+          <div className="flex h-64 w-full items-center justify-center rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 to-secondary/10 backdrop-blur-md">
+            <div className="space-y-4 text-center">
+              <div className="flex justify-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-primary/40"></div>
+                <div className="h-8 w-8 rounded-lg bg-primary/60"></div>
+                <div className="h-8 w-8 rounded-lg bg-primary/80"></div>
+              </div>
+              <p className="text-sm text-foreground/60">Analytics Inteligente</p>
+            </div>
+          </div>
+
+          {/* Motivational Text */}
+          <div className="max-w-md space-y-4">
+            <h2 className="text-3xl font-bold text-foreground">
+              Detectando riesgos, impulsando futuros
+            </h2>
+            <p className="text-foreground/70">
+              Sistema integral de IA para el acompañamiento académico y prevención de deserción estudiantil.
+            </p>
+          </div>
+
+          {/* Statistics Cards */}
+          <div className="grid w-full max-w-sm grid-cols-2 gap-3">
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 backdrop-blur-sm">
+              <div className="text-2xl font-bold text-primary">98%</div>
+              <p className="text-xs text-foreground/60">Precisión de Detección</p>
+            </div>
+            <div className="rounded-lg border border-secondary/20 bg-secondary/5 p-4 backdrop-blur-sm">
+              <div className="text-2xl font-bold text-secondary">2.5K+</div>
+              <p className="text-xs text-foreground/60">Estudiantes Monitoreados</p>
+            </div>
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 backdrop-blur-sm">
+              <div className="text-2xl font-bold text-primary">24/7</div>
+              <p className="text-xs text-foreground/60">Monitoreo en Vivo</p>
+            </div>
+            <div className="rounded-lg border border-secondary/20 bg-secondary/5 p-4 backdrop-blur-sm">
+              <div className="text-2xl font-bold text-secondary">150+</div>
+              <p className="text-xs text-foreground/60">Universidades</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="text-xs text-foreground/50">
+          © 2024 EduSupport AI. Todos los derechos reservados.
+        </div>
+      </div>
+
+      {/* Right Side - Login Form */}
+      <div className="flex w-full flex-col items-center justify-center px-6 lg:w-1/2 lg:px-12">
+        <div className="w-full max-w-sm space-y-8">
+          {/* Logo Mobile */}
+          <div className="flex items-center gap-3 lg:hidden">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-secondary">
+              <span className="text-sm font-bold text-white">E</span>
+            </div>
+            <span className="text-xl font-bold text-foreground">EduSupport AI</span>
+          </div>
+
+          {/* Form Container with Glassmorphism */}
+          <div className="space-y-6 rounded-3xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
+            {/* Header */}
+            <div className="space-y-2 text-center">
+              <h1 className="text-2xl font-bold text-foreground">
+                Acceso al Sistema
+              </h1>
+              <p className="text-sm text-foreground/70">
+                Sistema Inteligente de Acompañamiento Académico
+              </p>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleLogin} className="space-y-5">
+              {/* Email Field */}
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-foreground">
+                  Correo Institucional
+                </Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-foreground/50" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="tu.correo@universidad.edu"
+                    className="border-primary/20 bg-background/50 pl-10 text-foreground placeholder:text-foreground/40"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Password Field */}
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-foreground">
+                  Contraseña
+                </Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-foreground/50" />
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    className="border-primary/20 bg-background/50 pl-10 pr-10 text-foreground placeholder:text-foreground/40"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/50 hover:text-foreground"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Role Selector */}
+              <div className="space-y-2">
+                <Label htmlFor="role" className="text-foreground">
+                  Tipo de Usuario
+                </Label>
+                <div className="relative">
+                  <Users className="absolute left-3 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-foreground/50 pointer-events-none" />
+                  <Select value={role} onValueChange={setRole}>
+                    <SelectTrigger className="border-primary/20 bg-background/50 pl-10 text-foreground">
+                      <SelectValue placeholder="Selecciona tu rol" />
+                    </SelectTrigger>
+                    <SelectContent className="border-primary/20 bg-background">
+                      <SelectItem value="admin">
+                        Administrador
+                      </SelectItem>
+                      <SelectItem value="tutor">
+                        Tutor Académico
+                      </SelectItem>
+                      <SelectItem value="student">
+                        Estudiante
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Login Button */}
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-gradient-to-r from-primary to-secondary py-6 text-base font-semibold text-white shadow-lg hover:shadow-xl hover:opacity-90 transition-all"
+              >
+                {isLoading ? (
+                  <span className="flex items-center gap-2">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+                    Iniciando sesión...
+                  </span>
+                ) : (
+                  'Acceder al Sistema'
+                )}
+              </Button>
+            </form>
+
+            {/* Forgot Password Link */}
+            <div className="text-center">
+              <a
+                href="#"
+                className="text-sm text-secondary hover:text-secondary/80 transition-colors underline-offset-4 hover:underline"
+              >
+                ¿Olvidaste tu contraseña?
+              </a>
+            </div>
+          </div>
+
+          {/* Footer Text */}
+          <p className="text-center text-xs text-foreground/50">
+            Plataforma segura de acompañamiento académico <br />
+            Detectando riesgos, impulsando futuros
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+      </div>
+
+      {/* Background Gradient Effects */}
+      <div className="pointer-events-none fixed inset-0">
+        <div className="absolute -right-1/4 -top-1/4 h-96 w-96 rounded-full bg-primary/10 blur-3xl"></div>
+        <div className="absolute -left-1/4 -bottom-1/4 h-96 w-96 rounded-full bg-secondary/10 blur-3xl"></div>
+      </div>
+    </main>
+  )
 }
