@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Users,
   BookOpen,
@@ -12,6 +12,11 @@ import {
   AlertCircle,
   CheckCircle,
 } from 'lucide-react'
+//import { useEffect } from 'react'
+//Alessandro
+import { fetchStudents } from '@/src/api/studentsApi'
+// Mauricio
+// import { students as aiStudents } from '@/src/data/students'
 import { SidebarLayout } from '@/components/dashboard/sidebar-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,11 +31,14 @@ import {
 
 export default function AdministradorPage() {
   const [tab, setTab] = useState<'estudiantes' | 'roles' | 'becas' | 'reportes'>('estudiantes')
-  const [students, setStudents] = useState([
-    { id: 1, nombre: 'Juan García', codigo: 'E001', correo: 'juan.garcia@uni.edu', ciclo: 'VI', carrera: 'Ingeniería Informática' },
-    { id: 2, nombre: 'María López', codigo: 'E002', correo: 'maria.lopez@uni.edu', ciclo: 'IV', carrera: 'Administración' },
-    { id: 3, nombre: 'Carlos Rodríguez', codigo: 'E003', correo: 'carlos.r@uni.edu', ciclo: 'V', carrera: 'Ingeniería Civil' },
-  ])
+  //Agregado
+  const [students, setStudents] = useState<any[]>([])
+  
+  //const [students, setStudents] = useState([
+  //  { id: 1, nombre: 'Juan García', codigo: 'E001', correo: 'juan.garcia@uni.edu', ciclo: 'VI', carrera: 'Ingeniería Informática' },
+  //  { id: 2, nombre: 'María López', codigo: 'E002', correo: 'maria.lopez@uni.edu', ciclo: 'IV', carrera: 'Administración' },
+  //  { id: 3, nombre: 'Carlos Rodríguez', codigo: 'E003', correo: 'carlos.r@uni.edu', ciclo: 'V', carrera: 'Ingeniería Civil' },
+  //])
   
   const [formData, setFormData] = useState({
     nombre: '',
@@ -42,6 +50,32 @@ export default function AdministradorPage() {
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
   const [successMessage, setSuccessMessage] = useState('')
+
+  // AGREGADO CARGAR ESTUDIANTES DESDE API FAKE DE ALESSANDRO
+
+useEffect(() => {
+  const data = fetchStudents()
+
+  const formattedStudents = data.map((student: any) => ({
+    id: student.id,
+    nombre: student.name,
+    codigo: student.codigo,
+    correo: student.correo,
+    ciclo: student.ciclo,
+    carrera: student.carrera,
+
+    //FUTURO MAURICIO
+    //ESTO SERVIRÁ PARA MOSTRAR
+    //HIGH / MEDIUM / LOW
+
+    risk: student.risk,
+
+    //RECOMENDACIONES IA
+    recommendation: student.recommendation,
+  }))
+
+  setStudents(formattedStudents)
+}, [])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -71,9 +105,16 @@ export default function AdministradorPage() {
     
     if (!validateForm()) return
 
+    //const newStudent = {
+    //  id: students.length + 1,
+    //  ...formData,
+    //}
+
+    //Agregado
     const newStudent = {
       id: students.length + 1,
       ...formData,
+      risk: 'LOW',
     }
     
     setStudents(prev => [...prev, newStudent])
@@ -264,6 +305,10 @@ export default function AdministradorPage() {
                       <th className="px-4 py-3 text-left font-semibold text-foreground">Correo</th>
                       <th className="px-4 py-3 text-left font-semibold text-foreground">Ciclo</th>
                       <th className="px-4 py-3 text-left font-semibold text-foreground">Carrera</th>
+                      {/*COLUMNA IA - MAURICIO */}
+                      <th className="px-4 py-3 text-left font-semibold text-foreground">
+                        Riesgo IA
+                      </th>
                       <th className="px-4 py-3 text-left font-semibold text-foreground">Acciones</th>
                     </tr>
                   </thead>
@@ -275,6 +320,22 @@ export default function AdministradorPage() {
                         <td className="px-4 py-3 text-foreground/70">{student.correo}</td>
                         <td className="px-4 py-3 text-foreground/70">{student.ciclo}</td>
                         <td className="px-4 py-3 text-foreground/70">{student.carrera}</td>
+                        {/* BADGE DE RIESGO IA */}
+                        {/* DATOS GENERADOS POR MAURICIO */}
+
+                        <td className="px-4 py-3">
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                              student.risk === 'HIGH'
+                                ? 'bg-red-500/20 text-red-400'
+                                : student.risk === 'MEDIUM'
+                                ? 'bg-yellow-500/20 text-yellow-400'
+                                : 'bg-green-500/20 text-green-400'
+                            }`}
+                          >
+                            {student.risk || 'LOW'}
+                          </span>
+                        </td>
                         <td className="px-4 py-3">
                           <Button variant="ghost" size="sm" className="text-secondary hover:bg-secondary/10">
                             Editar
