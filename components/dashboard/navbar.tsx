@@ -9,7 +9,6 @@ export function Navbar() {
   return (
     <header className="bg-card border-b border-border sticky top-0 z-40">
       <div className="flex items-center justify-between px-6 py-4">
-
         <div className="flex items-center gap-4">
           <button
             className="md:hidden p-2 hover:bg-primary/10 rounded-lg transition-colors"
@@ -17,14 +16,12 @@ export function Navbar() {
           >
             <Menu className="w-5 h-5 text-foreground" />
           </button>
-
           <h2 className="text-lg font-semibold text-foreground hidden md:block">
             Dashboard
           </h2>
         </div>
 
         <div className="flex items-center gap-4">
-
           <div className="relative hidden sm:block">
             <input
               type="text"
@@ -41,7 +38,6 @@ export function Navbar() {
           <button className="p-2 hover:bg-primary/10 rounded-lg transition-colors">
             <User className="w-5 h-5 text-foreground" />
           </button>
-
         </div>
       </div>
     </header>

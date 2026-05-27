@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { Eye, EyeOff, Lock, Mail, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -18,12 +19,50 @@ export default function LoginPage() {
   const [role, setRole] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
+  const router = useRouter()
+
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
+    setError('')
+  
+    if (!email || !password || !role) {
+      setError('Todos los campos son obligatorios')
+      return
+    }
+  
+    const users: Record<string, string> = {
+      administrador: 'admin@edu.com',
+      tutor: 'tutor@edu.com',
+      coordinador: 'coord@edu.com',
+      estudiante: 'student@edu.com',
+    }
+  
+    if (email !== users[role] || password !== '123456') {
+      setError('Credenciales incorrectas')
+      return
+    }
+  
     setIsLoading(true)
-    setTimeout(() => setIsLoading(false), 1500)
+  
+    sessionStorage.setItem('userRole', role)
+    sessionStorage.setItem('auth_email', email)
+  
+    setTimeout(() => {
+      const routes: Record<string, string> = {
+        administrador: '/dashboard/administrador',
+        tutor: '/dashboard/tutor',
+        coordinador: '/dashboard/coordinador',
+        estudiante: '/dashboard/estudiante',
+      }
+      router.push(routes[role])
+      // No llamar setIsLoading(false) acá — ya estás navegando fuera
+    }, 1500)
   }
-
+  
   return (
     <main className="flex min-h-screen bg-background">
       {/* Left Side - Illustration & Statistics */}
@@ -122,6 +161,8 @@ export default function LoginPage() {
                   <Input
                     id="email"
                     type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     placeholder="tu.correo@universidad.edu"
                     className="border-primary/20 bg-background/50 pl-10 text-foreground placeholder:text-foreground/40"
                     required
@@ -139,6 +180,8 @@ export default function LoginPage() {
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     className="border-primary/20 bg-background/50 pl-10 pr-10 text-foreground placeholder:text-foreground/40"
                     required
@@ -169,14 +212,17 @@ export default function LoginPage() {
                       <SelectValue placeholder="Selecciona tu rol" />
                     </SelectTrigger>
                     <SelectContent className="border-primary/20 bg-background">
-                      <SelectItem value="admin">
+                      <SelectItem value="administrador">
                         Administrador
                       </SelectItem>
                       <SelectItem value="tutor">
                         Tutor Académico
                       </SelectItem>
-                      <SelectItem value="student">
+                      <SelectItem value="estudiante">
                         Estudiante
+                      </SelectItem>
+                      <SelectItem value="coordinador">
+                        Coordinador
                       </SelectItem>
                     </SelectContent>
                   </Select>
@@ -198,6 +244,13 @@ export default function LoginPage() {
                   'Acceder al Sistema'
                 )}
               </Button>
+              {
+                error && (
+                  <p className="text-sm text-red-500 text-center">
+                    {error}
+                  </p>
+                )
+              }
             </form>
 
             {/* Forgot Password Link */}
