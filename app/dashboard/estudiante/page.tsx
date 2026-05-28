@@ -2,19 +2,20 @@
 
 import { useState } from 'react'
 import {
-  BookOpen,
   Gift,
   MessageSquare,
   Send,
   AlertTriangle,
   TrendingUp,
   DollarSign,
+  AlertCircle,
+  CheckCircle
 } from 'lucide-react'
 import { useEffect } from 'react'
 
 // TUTORÍAS API ALESSANDRO
 import { getTutoringRequests } from '@/src/services/tutoringService'
-
+import { getScholarships } from '@/src/services/scholarshipService'
 // ALERTAS IA MAURICIO
 import { alerts } from '@/src/data/students'
 import { SidebarLayout } from '@/components/dashboard/sidebar-layout'
@@ -26,11 +27,18 @@ import { Textarea } from '@/components/ui/textarea'
 interface Scholarship {
   id: number
   nombre: string
-  cantidad: number
-  descripcion: string
-  requisitos: string[]
+  monto: string
+  requisitos: string
 }
 
+interface TutoringRequest {
+  id: number
+  estudiante: string
+  motivo: string
+  descripcion: string
+  fecha: string
+  estado: string
+}
 
 
 export default function EstudiantePage() {
@@ -51,50 +59,42 @@ export default function EstudiantePage() {
   // SOLICITUDES DE TUTORÍA
 // VENDRÁN DESDE API FAKE DE ALESSANDRO
 
-  const [submittedRequests, setSubmittedRequests] = useState<any[]>([])
+  const [submittedRequests, setSubmittedRequests] =
+  useState<TutoringRequest[]>([])
 
   const [successMessage, setSuccessMessage] = useState('')
+
+  const [scholarships, setScholarships] = useState<Scholarship[]>([])
 
   // CARGAR SOLICITUDES DE TUTORÍA
 // DESDE tutoringService.js
 
   useEffect(() => {
-    const data = getTutoringRequests()
+    const savedRequests = localStorage.getItem('tutoringRequests')
 
-    const formattedRequests = data.map((request: any) => ({
-      id: request.id,
-      motivo: request.motivo,
-      descripcion: request.descripcion,
-      estudiante: request.estudiante,
-      estado: request.estado,
-    }))
+    if (savedRequests) {
+      setSubmittedRequests(JSON.parse(savedRequests))
+    } else {
+      const data = getTutoringRequests()
 
-    setSubmittedRequests(formattedRequests)
+      const formattedRequests = data.map((request: any) => ({
+        id: request.id,
+        motivo: request.motivo,
+        descripcion: request.descripcion,
+        estudiante: request.estudiante,
+        fecha: request.fecha,
+        estado: request.estado,
+      }))
+
+      setSubmittedRequests(formattedRequests)
+    }
   }, [])
 
-  const scholarships: Scholarship[] = [
-    {
-      id: 1,
-      nombre: 'Beca de Excelencia Académica',
-      cantidad: 2500,
-      descripcion: 'Para estudiantes con promedio superior a 4.0',
-      requisitos: ['Promedio > 4.0', 'Registro académico limpio', 'Documentos al día'],
-    },
-    {
-      id: 2,
-      nombre: 'Beca de Vulnerabilidad Económica',
-      cantidad: 1800,
-      descripcion: 'Para estudiantes en situación económica difícil',
-      requisitos: ['Ingresos familiares bajos', 'Carta de solicitud', 'Documentos de ingresos'],
-    },
-    {
-      id: 3,
-      nombre: 'Beca Deportiva',
-      cantidad: 2000,
-      descripcion: 'Para atletas destacados de la universidad',
-      requisitos: ['Participación en deportes universitarios', 'Buen desempeño académico', 'Recomendación del coach'],
-    },
-  ]
+  useEffect(() => {
+    const data = getScholarships()
+  
+    setScholarships(data)
+  }, [])
 
   //const alerts: Alert[] = [
   //  {
@@ -156,7 +156,14 @@ export default function EstudiantePage() {
       estado: 'Pendiente',
     }
 
-    setSubmittedRequests(prev => [...prev, newRequest])
+    const updatedRequests = [...submittedRequests, newRequest]
+
+    setSubmittedRequests(updatedRequests)
+
+    localStorage.setItem(
+      'tutoringRequests',
+      JSON.stringify(updatedRequests)
+    )
     setFormData({ motivo: '', descripcion: '' })
     setSuccessMessage('Solicitud de tutoría enviada exitosamente')
     
@@ -304,18 +311,17 @@ export default function EstudiantePage() {
                       <Gift className="h-6 w-6 text-secondary" />
                       <h3 className="text-lg font-bold text-foreground">{scholarship.nombre}</h3>
                     </div>
-                    <p className="text-foreground/70 mb-4">{scholarship.descripcion}</p>
-                    
+                    <p className="text-foreground/70 mb-4">
+                      Información de beca disponible para estudiantes.
+                    </p>
                     <div className="mb-4">
                       <p className="text-sm font-semibold text-foreground mb-2">Requisitos:</p>
                       <ul className="space-y-1 text-sm text-foreground/70">
-                        {scholarship.requisitos.map((req, idx) => (
-                          <li key={idx} className="flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 rounded-full bg-secondary"></span>
-                            {req}
-                          </li>
-                        ))}
-                      </ul>
+                      <li className="flex items-center gap-2">
+                        <span className="h-1.5 w-1.5 rounded-full bg-secondary"></span>
+                        {scholarship.requisitos}
+                      </li>
+                    </ul>
                     </div>
                   </div>
                   
@@ -324,7 +330,7 @@ export default function EstudiantePage() {
                       <p className="text-xs text-foreground/70">Monto Mensual</p>
                       <p className="text-2xl font-bold text-secondary flex items-center gap-1">
                         <DollarSign className="h-5 w-5" />
-                        {scholarship.cantidad}
+                        {scholarship.monto}
                       </p>
                     </div>
                     <Button className="bg-gradient-to-r from-primary to-secondary">

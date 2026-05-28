@@ -24,13 +24,19 @@ export default function TutorPage() {
   // SOLICITUDES DE TUTORÍA
   const [requests, setRequests] = useState<any[]>([])
 
-  // CARGAR SOLICITUDES DESDE API
+
   useEffect(() => {
-    const data = getTutoringRequests()
-
-    setRequests(data)
+    const savedRequests =
+      localStorage.getItem('tutoringRequests')
+  
+    if (savedRequests) {
+      setRequests(JSON.parse(savedRequests))
+    } else {
+      const data = getTutoringRequests()
+  
+      setRequests(data)
+    }
   }, [])
-
   // COLORES DE ESTADO
   const getEstadoBadge = (estado: string) => {
     switch (estado) {
@@ -47,6 +53,8 @@ export default function TutorPage() {
         return ''
     }
   }
+
+
 
   const menuItems = [
     {
