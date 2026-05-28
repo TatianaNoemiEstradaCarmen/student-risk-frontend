@@ -31,7 +31,15 @@ import {
 } from '@/components/ui/select'
 
 export default function AdministradorPage() {
-  const [tab, setTab] = useState<'estudiantes' | 'roles' | 'becas' | 'reportes'>('estudiantes')
+const [tab, setTab] = useState<
+  'estudiantes'
+  | 'roles'
+  | 'becas'
+  | 'reportes'
+  | 'hallazgos'
+>('estudiantes')
+
+
   //Agregado
   const [students, setStudents] = useState<any[]>([])
   
@@ -61,6 +69,18 @@ export default function AdministradorPage() {
     monto: '',
     requisitos: '',
   })
+
+const [findings, setFindings] = useState<any[]>([])
+
+const [findingForm, setFindingForm] = useState({
+  estudiante: '',
+  problemas: '',
+  necesidades: '',
+  motivaciones: '',
+})
+
+
+
   // AGREGADO CARGAR ESTUDIANTES DESDE API FAKE DE ALESSANDRO
 
   const [editingScholarshipId, setEditingScholarshipId] =
@@ -100,6 +120,15 @@ export default function AdministradorPage() {
       const data = getScholarships()
   
       setScholarships(data)
+    }
+  }, [])
+
+  useEffect(() => {
+    const savedFindings =
+      localStorage.getItem('findings')
+
+    if (savedFindings) {
+      setFindings(JSON.parse(savedFindings))
     }
   }, [])
 
@@ -176,7 +205,19 @@ export default function AdministradorPage() {
       [name]: value,
     }))
   }
-  
+
+  const handleFindingInputChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const { name, value } = e.target
+
+    setFindingForm(prev => ({
+      ...prev,
+      [name]: value,
+    }))
+  }
+
+
   const handleAddScholarship = (
     e: React.FormEvent
   ) => {
@@ -249,6 +290,36 @@ export default function AdministradorPage() {
     )
   }
 
+  const handleAddFinding = (
+    e: React.FormEvent
+  ) => {
+    e.preventDefault()
+
+    const newFinding = {
+      id: findings.length + 1,
+      ...findingForm,
+    }
+
+    const updatedFindings = [
+      ...findings,
+      newFinding,
+    ]
+
+    setFindings(updatedFindings)
+
+    localStorage.setItem(
+      'findings',
+      JSON.stringify(updatedFindings)
+    )
+
+    setFindingForm({
+      estudiante: '',
+      problemas: '',
+      necesidades: '',
+      motivaciones: '',
+    })
+  }
+
   const handleAssignRole = (
     student: any,
     role: string
@@ -294,7 +365,7 @@ export default function AdministradorPage() {
     { label: 'Gestión de Estudiantes', href: '/dashboard/administrador', icon: <Users className="h-5 w-5" /> },
     { label: 'Registro de Becas', href: '/dashboard/administrador?tab=becas', icon: <BookOpen className="h-5 w-5" /> },
     { label: 'Asignación de Roles', href: '/dashboard/administrador?tab=roles', icon: <UserCheck className="h-5 w-5" /> },
-    { label: 'Reportes Académicos', href: '/dashboard/administrador?tab=reportes', icon: <BarChart3 className="h-5 w-5" /> },
+    //{ label: 'Reportes Académicos', href: '/dashboard/administrador?tab=reportes', icon: <BarChart3 className="h-5 w-5" /> },
     { label: 'Configuración', href: '/dashboard/administrador?tab=config', icon: <Settings className="h-5 w-5" /> },
   ]
 
@@ -316,7 +387,8 @@ export default function AdministradorPage() {
             { id: 'estudiantes', label: 'Gestión de Estudiantes' },
             { id: 'becas', label: 'Registro de Becas' },
             { id: 'roles', label: 'Asignación de Roles' },
-            { id: 'reportes', label: 'Reportes Académicos' },
+            //{ id: 'reportes', label: 'Reportes Académicos' },
+            { id: 'hallazgos', label: 'Hallazgos Entrevistas' },
           ].map(tabItem => (
             <button
               key={tabItem.id}
@@ -646,6 +718,124 @@ export default function AdministradorPage() {
     </div>
   </div>
 )}
+
+        {tab === 'hallazgos' && (
+          <div className="space-y-6">
+
+            {/* FORMULARIO */}
+
+            <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
+
+              <h2 className="mb-6 text-xl font-bold text-foreground">
+                Registro de Hallazgos
+              </h2>
+
+              <form
+                onSubmit={handleAddFinding}
+                className="space-y-4"
+              >
+
+                <Input
+                  name="estudiante"
+                  value={findingForm.estudiante}
+                  onChange={handleFindingInputChange}
+                  placeholder="Nombre del estudiante"
+                />
+
+                <Input
+                  name="problemas"
+                  value={findingForm.problemas}
+                  onChange={handleFindingInputChange}
+                  placeholder="Problemas detectados"
+                />
+
+                <Input
+                  name="necesidades"
+                  value={findingForm.necesidades}
+                  onChange={handleFindingInputChange}
+                  placeholder="Necesidades"
+                />
+
+                <Input
+                  name="motivaciones"
+                  value={findingForm.motivaciones}
+                  onChange={handleFindingInputChange}
+                  placeholder="Motivaciones"
+                />
+
+                <Button type="submit">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Registrar Hallazgo
+                </Button>
+
+              </form>
+            </div>
+
+            {/* TABLA */}
+
+            <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
+
+              <h2 className="mb-6 text-xl font-bold text-foreground">
+                Hallazgos Registrados
+              </h2>
+
+              <table className="w-full text-sm">
+
+                <thead>
+                  <tr className="border-b border-primary/20">
+
+                    <th className="px-4 py-3 text-left">
+                      Estudiante
+                    </th>
+
+                    <th className="px-4 py-3 text-left">
+                      Problemas
+                    </th>
+
+                    <th className="px-4 py-3 text-left">
+                      Necesidades
+                    </th>
+
+                    <th className="px-4 py-3 text-left">
+                      Motivaciones
+                    </th>
+
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {findings.map(finding => (
+                    <tr
+                      key={finding.id}
+                      className="border-b border-primary/10"
+                    >
+
+                      <td className="px-4 py-3">
+                        {finding.estudiante}
+                      </td>
+
+                      <td className="px-4 py-3">
+                        {finding.problemas}
+                      </td>
+
+                      <td className="px-4 py-3">
+                        {finding.necesidades}
+                      </td>
+
+                      <td className="px-4 py-3">
+                        {finding.motivaciones}
+                      </td>
+
+                    </tr>
+                  ))}
+                </tbody>
+
+              </table>
+            </div>
+          </div>
+        )}
+
+
 
         {/* Roles Tab */}
         {tab === 'roles' && (
