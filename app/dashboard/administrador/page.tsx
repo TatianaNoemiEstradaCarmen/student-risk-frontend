@@ -35,6 +35,8 @@ export default function AdministradorPage() {
   //Agregado
   const [students, setStudents] = useState<any[]>([])
   
+  const [userRoles, setUserRoles] = useState<any[]>([])
+
   //const [students, setStudents] = useState([
   //  { id: 1, nombre: 'Juan García', codigo: 'E001', correo: 'juan.garcia@uni.edu', ciclo: 'VI', carrera: 'Ingeniería Informática' },
   //  { id: 2, nombre: 'María López', codigo: 'E002', correo: 'maria.lopez@uni.edu', ciclo: 'IV', carrera: 'Administración' },
@@ -101,6 +103,14 @@ export default function AdministradorPage() {
     }
   }, [])
 
+  useEffect(() => {
+    const savedRoles =
+      localStorage.getItem('userRoles')
+  
+    if (savedRoles) {
+      setUserRoles(JSON.parse(savedRoles))
+    }
+  }, [])
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
@@ -239,6 +249,29 @@ export default function AdministradorPage() {
     )
   }
 
+  const handleAssignRole = (
+    student: any,
+    role: string
+  ) => {
+    const updatedRoles = [
+      ...userRoles.filter(
+        item => item.id !== student.id
+      ),
+      {
+        id: student.id,
+        nombre: student.nombre,
+        role,
+      },
+    ]
+  
+    setUserRoles(updatedRoles)
+  
+    localStorage.setItem(
+      'userRoles',
+      JSON.stringify(updatedRoles)
+    )
+  }
+
   const handleEditScholarship = (id: number) => {
     const scholarshipToEdit =
       scholarships.find(
@@ -264,6 +297,9 @@ export default function AdministradorPage() {
     { label: 'Reportes Académicos', href: '/dashboard/administrador?tab=reportes', icon: <BarChart3 className="h-5 w-5" /> },
     { label: 'Configuración', href: '/dashboard/administrador?tab=config', icon: <Settings className="h-5 w-5" /> },
   ]
+
+  const currentRole =
+  userRoles[0]?.role || 'estudiante'
 
   return (
     <SidebarLayout role="administrador" menuItems={menuItems}>
@@ -614,19 +650,131 @@ export default function AdministradorPage() {
         {/* Roles Tab */}
         {tab === 'roles' && (
           <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
-            <h2 className="mb-6 text-xl font-bold text-foreground">Asignación de Roles</h2>
-            <p className="text-foreground/70">Módulo de asignación de roles (en desarrollo)</p>
+
+            <h2 className="mb-6 text-xl font-bold text-foreground">
+              Asignación de Roles
+            </h2>
+
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-primary/20">
+                  <th className="px-4 py-3 text-left">
+                    Usuario
+                  </th>
+
+                  <th className="px-4 py-3 text-left">
+                    Rol
+                  </th>
+
+                  <th className="px-4 py-3 text-left">
+                    Acción
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {students.map(student => {
+                  const assignedRole =
+                    userRoles.find(
+                      item => item.id === student.id
+                    )?.role || 'estudiante'
+
+                  return (
+                    <tr
+                      key={student.id}
+                      className="border-b border-primary/10"
+                    >
+                      <td className="px-4 py-3">
+                        {student.nombre}
+                      </td>
+
+                      <td className="px-4 py-3">
+                        {assignedRole}
+                      </td>
+
+                      <td className="px-4 py-3">
+                        <Select
+                          onValueChange={(value) =>
+                            handleAssignRole(
+                              student,
+                              value
+                            )
+                          }
+                        >
+                          <SelectTrigger className="w-48">
+                            <SelectValue placeholder="Seleccionar rol" />
+                          </SelectTrigger>
+
+                          <SelectContent>
+                            <SelectItem value="administrador">
+                              Administrador
+                            </SelectItem>
+
+                            <SelectItem value="tutor">
+                              Tutor
+                            </SelectItem>
+
+                            <SelectItem value="coordinador">
+                              Coordinador
+                            </SelectItem>
+
+                            <SelectItem value="estudiante">
+                              Estudiante
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
         )}
 
+
+
         {/* Reportes Tab */}
         {tab === 'reportes' && (
-          <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
-            <h2 className="mb-6 text-xl font-bold text-foreground">Reportes Académicos</h2>
-            <p className="text-foreground/70">Módulo de reportes (en desarrollo)</p>
-          </div>
-        )}
-      </div>
-    </SidebarLayout>
-  )
+  <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
+
+    <h2 className="mb-6 text-xl font-bold text-foreground">
+      Reportes Académicos
+    </h2>
+
+    <p className="text-foreground/70">
+      Módulo de reportes (en desarrollo)
+    </p>
+
+    {currentRole === 'administrador' && (
+      <p className="mt-4 text-green-500">
+        Opciones de administrador visibles
+      </p>
+    )}
+
+    {currentRole === 'tutor' && (
+      <p className="mt-4 text-blue-500">
+        Panel de tutor visible
+      </p>
+    )}
+
+    {currentRole === 'coordinador' && (
+      <p className="mt-4 text-yellow-500">
+        Panel de coordinador visible
+      </p>
+    )}
+
+    {currentRole === 'estudiante' && (
+      <p className="mt-4 text-purple-500">
+        Vista de estudiante visible
+      </p>
+    )}
+
+  </div>
+)}
+
+</div>
+</SidebarLayout>
+)
 }
+
