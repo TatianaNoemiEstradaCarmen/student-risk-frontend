@@ -208,7 +208,7 @@ export default function EstudiantePage() {
           {[
             { id: 'solicitudes', label: 'Solicitar Tutoría' },
             { id: 'becas', label: 'Becas Disponibles' },
-            { id: 'alertas', label: 'Mis Alertas' },
+            //{ id: 'alertas', label: 'Mis Alertas' },
           ].map(tabItem => (
             <button
               key={tabItem.id}
@@ -329,7 +329,7 @@ export default function EstudiantePage() {
                     <div className="rounded-lg border border-secondary/20 bg-secondary/10 px-4 py-2">
                       <p className="text-xs text-foreground/70">Monto Mensual</p>
                       <p className="text-2xl font-bold text-secondary flex items-center gap-1">
-                        <DollarSign className="h-5 w-5" />
+                        
                         {scholarship.monto}
                       </p>
                     </div>

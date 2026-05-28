@@ -15,6 +15,7 @@ import {
 //import { useEffect } from 'react'
 //Alessandro
 import { fetchStudents } from '@/src/api/studentsApi'
+import { getScholarships } from '@/src/services/scholarshipService'
 // Mauricio
 // import { students as aiStudents } from '@/src/data/students'
 import { SidebarLayout } from '@/components/dashboard/sidebar-layout'
@@ -51,31 +52,54 @@ export default function AdministradorPage() {
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
   const [successMessage, setSuccessMessage] = useState('')
 
+  const [scholarships, setScholarships] = useState<any[]>([])
+
+  const [scholarshipForm, setScholarshipForm] = useState({
+    nombre: '',
+    monto: '',
+    requisitos: '',
+  })
   // AGREGADO CARGAR ESTUDIANTES DESDE API FAKE DE ALESSANDRO
 
-useEffect(() => {
-  const data = fetchStudents()
+  const [editingScholarshipId, setEditingScholarshipId] =
+  useState<number | null>(null)
 
-  const formattedStudents = data.map((student: any) => ({
-    id: student.id,
-    nombre: student.name,
-    codigo: student.codigo,
-    correo: student.correo,
-    ciclo: student.ciclo,
-    carrera: student.carrera,
+  useEffect(() => {
+    const savedStudents =
+      localStorage.getItem('students')
+  
+    if (savedStudents) {
+      setStudents(JSON.parse(savedStudents))
+    } else {
+      const data = fetchStudents()
+  
+      const formattedStudents = data.map((student: any) => ({
+        id: student.id,
+        nombre: student.name,
+        codigo: student.codigo,
+        correo: student.correo,
+        ciclo: student.ciclo,
+        carrera: student.carrera,
+        risk: student.risk,
+        recommendation: student.recommendation,
+      }))
+  
+      setStudents(formattedStudents)
+    }
+  }, [])
 
-    //FUTURO MAURICIO
-    //ESTO SERVIRÁ PARA MOSTRAR
-    //HIGH / MEDIUM / LOW
-
-    risk: student.risk,
-
-    //RECOMENDACIONES IA
-    recommendation: student.recommendation,
-  }))
-
-  setStudents(formattedStudents)
-}, [])
+  useEffect(() => {
+    const savedScholarships =
+      localStorage.getItem('scholarships')
+  
+    if (savedScholarships) {
+      setScholarships(JSON.parse(savedScholarships))
+    } else {
+      const data = getScholarships()
+  
+      setScholarships(data)
+    }
+  }, [])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -117,13 +141,121 @@ useEffect(() => {
       risk: 'LOW',
     }
     
-    setStudents(prev => [...prev, newStudent])
+    const updatedStudents = [...students, newStudent]
+
+    setStudents(updatedStudents)
+
+    localStorage.setItem(
+      'students',
+      JSON.stringify(updatedStudents)
+    )
     setFormData({ nombre: '', codigo: '', correo: '', ciclo: '', carrera: '' })
     setErrors({})
     setSuccessMessage('Estudiante agregado exitosamente')
     
     setTimeout(() => setSuccessMessage(''), 3000)
   }
+
+  const handleScholarshipInputChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const { name, value } = e.target
+  
+    setScholarshipForm(prev => ({
+      ...prev,
+      [name]: value,
+    }))
+  }
+  
+  const handleAddScholarship = (
+    e: React.FormEvent
+  ) => {
+    e.preventDefault()
+  
+    // EDITAR
+    if (editingScholarshipId !== null) {
+      const updatedScholarships =
+        scholarships.map((scholarship) => {
+          if (
+            scholarship.id === editingScholarshipId
+          ) {
+            return {
+              ...scholarship,
+              ...scholarshipForm,
+            }
+          }
+  
+          return scholarship
+        })
+  
+      setScholarships(updatedScholarships)
+  
+      localStorage.setItem(
+        'scholarships',
+        JSON.stringify(updatedScholarships)
+      )
+  
+      setEditingScholarshipId(null)
+    }
+  
+    // CREAR
+    else {
+      const newScholarship = {
+        id: scholarships.length + 1,
+        ...scholarshipForm,
+      }
+  
+      const updatedScholarships = [
+        ...scholarships,
+        newScholarship,
+      ]
+  
+      setScholarships(updatedScholarships)
+  
+      localStorage.setItem(
+        'scholarships',
+        JSON.stringify(updatedScholarships)
+      )
+    }
+  
+    setScholarshipForm({
+      nombre: '',
+      monto: '',
+      requisitos: '',
+    })
+  }
+
+  const handleDeleteScholarship = (id: number) => {
+    const updatedScholarships =
+      scholarships.filter(
+        scholarship => scholarship.id !== id
+      )
+  
+    setScholarships(updatedScholarships)
+  
+    localStorage.setItem(
+      'scholarships',
+      JSON.stringify(updatedScholarships)
+    )
+  }
+
+  const handleEditScholarship = (id: number) => {
+    const scholarshipToEdit =
+      scholarships.find(
+        scholarship => scholarship.id === id
+      )
+  
+    if (!scholarshipToEdit) return
+  
+    setScholarshipForm({
+      nombre: scholarshipToEdit.nombre,
+      monto: scholarshipToEdit.monto,
+      requisitos: scholarshipToEdit.requisitos,
+    })
+  
+    setEditingScholarshipId(id)
+  }
+
 
   const menuItems = [
     { label: 'Gestión de Estudiantes', href: '/dashboard/administrador', icon: <Users className="h-5 w-5" /> },
@@ -350,13 +482,134 @@ useEffect(() => {
           </div>
         )}
 
-        {/* Becas Tab */}
-        {tab === 'becas' && (
-          <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
-            <h2 className="mb-6 text-xl font-bold text-foreground">Registro de Becas</h2>
-            <p className="text-foreground/70">Módulo de gestión de becas (en desarrollo)</p>
-          </div>
-        )}
+{tab === 'becas' && (
+  <div className="space-y-6">
+
+    {/* FORMULARIO */}
+
+    <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
+      <h2 className="mb-6 text-xl font-bold text-foreground">
+        Registrar Nueva Beca
+      </h2>
+
+      <form
+        onSubmit={handleAddScholarship}
+        className="space-y-5"
+      >
+        <div className="space-y-2">
+          <Label>Nombre de la Beca</Label>
+
+          <Input
+            name="nombre"
+            value={scholarshipForm.nombre}
+            onChange={handleScholarshipInputChange}
+            placeholder="Beca Excelencia"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label>Monto</Label>
+
+          <Input
+            name="monto"
+            value={scholarshipForm.monto}
+            onChange={handleScholarshipInputChange}
+            placeholder="5000"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label>Requisitos</Label>
+
+          <Input
+            name="requisitos"
+            value={scholarshipForm.requisitos}
+            onChange={handleScholarshipInputChange}
+            placeholder="Promedio mayor a 16"
+          />
+        </div>
+
+        <Button type="submit">
+          <Plus className="mr-2 h-4 w-4" />
+          {editingScholarshipId !== null
+            ? 'Guardar Cambios'
+            : 'Registrar Beca'}
+        </Button>
+      </form>
+    </div>
+
+    {/* TABLA */}
+
+    <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
+      <h2 className="mb-6 text-xl font-bold text-foreground">
+        Becas Registradas
+      </h2>
+
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-primary/20">
+            <th className="px-4 py-3 text-left">
+              Nombre
+            </th>
+
+            <th className="px-4 py-3 text-left">
+              Monto
+            </th>
+
+            <th className="px-4 py-3 text-left">
+              Requisitos
+            </th>
+
+            <th className="px-4 py-3 text-left">
+              Acciones
+            </th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {scholarships.map((scholarship) => (
+            <tr
+              key={scholarship.id}
+              className="border-b border-primary/10"
+            >
+              <td className="px-4 py-3">
+                {scholarship.nombre}
+              </td>
+
+              <td className="px-4 py-3">
+                {scholarship.monto}
+              </td>
+
+              <td className="px-4 py-3">
+                {scholarship.requisitos}
+              </td>
+
+              <td className="px-4 py-3">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleDeleteScholarship(scholarship.id)}
+                >
+                  Eliminar
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    handleEditScholarship(scholarship.id)
+                  }
+                >
+                  Editar
+                </Button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
 
         {/* Roles Tab */}
         {tab === 'roles' && (
