@@ -24,37 +24,30 @@ export default function TutorPage() {
   // SOLICITUDES DE TUTORÍA
   const [requests, setRequests] = useState<any[]>([])
 
-
   useEffect(() => {
-    const savedRequests =
-      localStorage.getItem('tutoringRequests')
+    const savedRequests = localStorage.getItem('tutoringRequests')
   
     if (savedRequests) {
       setRequests(JSON.parse(savedRequests))
     } else {
       const data = getTutoringRequests()
-  
       setRequests(data)
     }
   }, [])
+
   // COLORES DE ESTADO
   const getEstadoBadge = (estado: string) => {
     switch (estado) {
       case 'pendiente':
         return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/20'
-
       case 'aceptada':
         return 'bg-blue-500/20 text-blue-400 border-blue-500/20'
-
       case 'completada':
         return 'bg-green-500/20 text-green-400 border-green-500/20'
-
       default:
         return ''
     }
   }
-
-
 
   const menuItems = [
     {
@@ -62,13 +55,11 @@ export default function TutorPage() {
       href: '/dashboard/tutor',
       icon: <AlertTriangle className="h-5 w-5" />,
     },
-
     {
       label: 'Solicitudes de Tutoría',
       href: '/dashboard/tutor?tab=solicitudes',
       icon: <MessageSquare className="h-5 w-5" />,
     },
-
     {
       label: 'Seguimiento Académico',
       href: '/dashboard/tutor?tab=seguimiento',
@@ -84,7 +75,6 @@ export default function TutorPage() {
           <h1 className="text-3xl font-bold text-foreground">
             Panel de Tutor Académico
           </h1>
-
           <p className="text-foreground/70">
             Gestiona alertas de estudiantes y solicitudes de tutoría
           </p>
@@ -98,21 +88,16 @@ export default function TutorPage() {
               value: alerts.length,
               color: 'bg-red-500/20 text-red-400',
             },
-
             {
               label: 'Solicitudes Pendientes',
-              value: requests.filter(
-                (r) => r.estado === 'Pendiente'
-              ).length,
+              value: requests.filter((r) => r.estado === 'Pendiente').length,
               color: 'bg-yellow-500/20 text-yellow-400',
             },
-
             {
               label: 'Tutorías Registradas',
               value: requests.length,
               color: 'bg-green-500/20 text-green-400',
             },
-
             {
               label: 'Estudiantes Monitoreados',
               value: '42',
@@ -126,7 +111,6 @@ export default function TutorPage() {
               <p className="text-sm font-medium text-foreground/70">
                 {kpi.label}
               </p>
-
               <p className="mt-2 text-3xl font-bold">
                 {kpi.value}
               </p>
@@ -141,7 +125,6 @@ export default function TutorPage() {
               <AlertTriangle className="h-5 w-5 text-red-400" />
               Alertas de Estudiantes en Riesgo
             </h2>
-
             <span className="text-sm text-foreground/70">
               {alerts.length} alertas activas
             </span>
@@ -158,23 +141,19 @@ export default function TutorPage() {
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/20">
                       <AlertTriangle className="h-5 w-5 text-red-400" />
                     </div>
-
                     <div>
                       <p className="font-semibold text-foreground">
                         {alert.student}
                       </p>
-
                       <p className="text-xs text-foreground/60">
                         {alert.message}
                       </p>
-
                       <p className="mt-1 text-xs text-yellow-400">
                         {alert.recommendation}
                       </p>
                     </div>
                   </div>
                 </div>
-
                 <div className="rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-400">
                   ALTO
                 </div>
@@ -197,21 +176,17 @@ export default function TutorPage() {
                   <th className="px-4 py-3 text-left font-semibold text-foreground">
                     Estudiante
                   </th>
-
                   <th className="px-4 py-3 text-left font-semibold text-foreground">
                     Motivo
                   </th>
-
                   <th className="px-4 py-3 text-left font-semibold text-foreground">
                     Estado
                   </th>
-
                   <th className="px-4 py-3 text-left font-semibold text-foreground">
                     Acciones
                   </th>
                 </tr>
               </thead>
-
               <tbody>
                 {requests.map((request) => (
                   <tr
@@ -221,11 +196,9 @@ export default function TutorPage() {
                     <td className="px-4 py-3 font-medium text-foreground">
                       {request.estudiante}
                     </td>
-
                     <td className="px-4 py-3 text-foreground/70">
                       {request.motivo}
                     </td>
-
                     <td className="px-4 py-3">
                       <span
                         className={`rounded-full border px-3 py-1 text-xs font-semibold ${getEstadoBadge(
@@ -235,7 +208,6 @@ export default function TutorPage() {
                         {request.estado}
                       </span>
                     </td>
-
                     <td className="flex gap-2 px-4 py-3">
                       {request.estado === 'Pendiente' && (
                         <Button
@@ -247,7 +219,6 @@ export default function TutorPage() {
                           Aceptar
                         </Button>
                       )}
-
                       {request.estado === 'Aceptada' && (
                         <Button
                           variant="ghost"
@@ -258,7 +229,6 @@ export default function TutorPage() {
                           Agendar
                         </Button>
                       )}
-
                       {request.estado === 'Completada' && (
                         <Button
                           variant="ghost"
