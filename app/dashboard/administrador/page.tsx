@@ -657,13 +657,7 @@ export default function AdministradorPage() {
           </div>
         )}
 
-        {/* ── CONFIG ── */}
-        {tab === 'config' && (
-          <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
-            <h2 className="mb-6 text-xl font-bold text-foreground">Configuración</h2>
-            <p className="text-foreground/70">Módulo de configuración (en desarrollo)</p>
-          </div>
-        )}
+       
 
       </div>
     </SidebarLayout>
