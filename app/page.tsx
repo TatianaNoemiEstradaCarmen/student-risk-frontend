@@ -254,14 +254,14 @@ export default function LoginPage() {
             </form>
 
             {/* Forgot Password Link */}
-            <div className="text-center">
+            {/*<div className="text-center">
               <a
                 href="#"
                 className="text-sm text-secondary hover:text-secondary/80 transition-colors underline-offset-4 hover:underline"
               >
                 ¿Olvidaste tu contraseña?
               </a>
-            </div>
+            </div>*/}
           </div>
 
           {/* Footer Text */}
