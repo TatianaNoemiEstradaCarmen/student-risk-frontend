@@ -313,7 +313,6 @@ export default function AdministradorPage() {
           <p className="text-foreground/70">Gestiona estudiantes, becas y asignación de roles</p>
         </div>
 
-        {/* Tabs */}
         <div className="mb-6 flex flex-wrap gap-2 border-b border-primary/20">
           {[
             { id: 'estudiantes', label: 'Gestión de Estudiantes' },
@@ -444,9 +443,7 @@ export default function AdministradorPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <Button variant="ghost" size="sm" className="text-secondary hover:bg-secondary/10">
-                            Editar
-                          </Button>
+                          <Button variant="ghost" size="sm" className="text-secondary hover:bg-secondary/10">Editar</Button>
                         </td>
                       </tr>
                     ))}

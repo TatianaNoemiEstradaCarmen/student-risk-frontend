@@ -1,4 +1,4 @@
-// 1. Datos simulados de estudiantes con campos extendidos para las tablas
+// 1. Datos simulados con Historial de Seguimiento (Para Criterio 3 de HU-03)
 const rawStudents = [
   {
     id: 1,
@@ -9,7 +9,11 @@ const rawStudents = [
     carrera: "Ingeniería de Sistemas",
     gpa: 10,
     attendance: 45,
-    role: "student"
+    role: "student",
+    historialSeguimiento: [
+      { fecha: "2026-05-20", nota: "Derivación a tutoría académica por bajas notas." },
+      { fecha: "2026-05-28", nota: "No se presentó a la sesión programada." }
+    ]
   },
   {
     id: 2,
@@ -20,7 +24,8 @@ const rawStudents = [
     carrera: "Administración",
     gpa: 17,
     attendance: 92,
-    role: "student"
+    role: "student",
+    historialSeguimiento: [] // Sin problemas previos
   },
   {
     id: 3,
@@ -31,7 +36,10 @@ const rawStudents = [
     carrera: "Contabilidad",
     gpa: 11,
     attendance: 85,
-    role: "student"
+    role: "student",
+    historialSeguimiento: [
+      { fecha: "2026-05-15", nota: "Se le asignó un plan de nivelación en matemáticas." }
+    ]
   },
   {
     id: 4,
@@ -42,42 +50,30 @@ const rawStudents = [
     carrera: "Psicología",
     gpa: 14,
     attendance: 65,
-    role: "student"
+    role: "student",
+    historialSeguimiento: []
   }
 ];
 
-// 2. Lógica de clasificación del nivel de riesgo (Árbol de decisión)
+// 2. Lógica de clasificación del nivel de riesgo
 const calculateRisk = (gpa, attendance) => {
-  if (attendance < 60 || gpa < 12) {
-    return "HIGH";
-  }
-
-  if (
-    (attendance >= 60 && attendance <= 75) ||
-    (gpa >= 12 && gpa <= 13)
-  ) {
-    return "MEDIUM";
-  }
-
+  if (attendance < 60 || gpa < 12) return "HIGH";
+  if ((attendance >= 60 && attendance <= 75) || (gpa >= 12 && gpa <= 13)) return "MEDIUM";
   return "LOW";
 };
 
-// 3. Motor de recomendaciones automáticas según el nivel de riesgo
+// 3. Recomendaciones automáticas
 const generateRecommendation = (risk) => {
   switch (risk) {
-    case "HIGH":
-      return "Requiere intervención inmediata";
-    case "MEDIUM":
-      return "Necesita seguimiento académico";
-    default:
-      return "Rendimiento estable";
+    case "HIGH": return "Requiere intervención inmediata";
+    case "MEDIUM": return "Necesita seguimiento académico";
+    default: return "Rendimiento estable";
   }
 };
 
-// 4. Exportación de la data procesada con riesgo e intervención inyectada
+// 4. Exportación de la data procesada (Criterio 2 y 3 de HU-03)
 export const students = rawStudents.map((student) => {
   const risk = calculateRisk(student.gpa, student.attendance);
-
   return {
     ...student,
     risk,
@@ -85,14 +81,13 @@ export const students = rawStudents.map((student) => {
   };
 });
 
-// 5. Estadísticas consolidadas para alimentar los gráficos del Dashboard (HU-25)
+// 5. Estadísticas y Alertas para el Dashboard
 export const riskStats = {
   high: students.filter((s) => s.risk === "HIGH").length,
   medium: students.filter((s) => s.risk === "MEDIUM").length,
   low: students.filter((s) => s.risk === "LOW").length,
 };
 
-// 6. Triggers de alertas para el panel de monitoreo preventivo (HU-26)
 export const alerts = students
   .filter((student) => student.risk === "HIGH")
   .map((student) => ({
@@ -100,3 +95,14 @@ export const alerts = students
     message: "Riesgo alto de deserción",
     recommendation: student.recommendation,
   }));
+
+// 6. Motor de Búsqueda para el Tutor (Cumple Criterio 1 de HU-03)
+export const findStudentProfile = (searchTerm) => {
+  if (!searchTerm) return null;
+  const term = searchTerm.toString().toLowerCase();
+  
+  return students.find(student => 
+    student.codigo.toLowerCase().includes(term) || 
+    student.name.toLowerCase().includes(term)
+  );
+};

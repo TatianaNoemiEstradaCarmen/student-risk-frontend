@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
+  BookOpen,
   Gift,
   MessageSquare,
   Send,
@@ -11,11 +12,11 @@ import {
   AlertCircle,
   CheckCircle
 } from 'lucide-react'
-import { useEffect } from 'react'
 
 // TUTORÍAS API ALESSANDRO
 import { getTutoringRequests } from '@/src/services/tutoringService'
 import { getScholarships } from '@/src/services/scholarshipService'
+
 // ALERTAS IA MAURICIO
 import { alerts } from '@/src/data/students'
 import { SidebarLayout } from '@/components/dashboard/sidebar-layout'
@@ -40,7 +41,6 @@ interface TutoringRequest {
   estado: string
 }
 
-
 export default function EstudiantePage() {
   const [tab, setTab] = useState<'solicitudes' | 'becas' | 'alertas'>('solicitudes')
   
@@ -49,25 +49,9 @@ export default function EstudiantePage() {
     descripcion: '',
   })
 
-  //const [submittedRequests, setSubmittedRequests] = useState<Array<{
-  //  id: number
-  //  motivo: string
-  //  descripcion: string
-  //  fecha: string
-  //  estado: string
-  //}>>([])
-  // SOLICITUDES DE TUTORÍA
-// VENDRÁN DESDE API FAKE DE ALESSANDRO
-
-  const [submittedRequests, setSubmittedRequests] =
-  useState<TutoringRequest[]>([])
-
+  const [submittedRequests, setSubmittedRequests] = useState<TutoringRequest[]>([])
   const [successMessage, setSuccessMessage] = useState('')
-
   const [scholarships, setScholarships] = useState<Scholarship[]>([])
-
-  // CARGAR SOLICITUDES DE TUTORÍA
-// DESDE tutoringService.js
 
   useEffect(() => {
     const savedRequests = localStorage.getItem('tutoringRequests')
@@ -76,7 +60,6 @@ export default function EstudiantePage() {
       setSubmittedRequests(JSON.parse(savedRequests))
     } else {
       const data = getTutoringRequests()
-
       const formattedRequests = data.map((request: any) => ({
         id: request.id,
         motivo: request.motivo,
@@ -85,40 +68,14 @@ export default function EstudiantePage() {
         fecha: request.fecha,
         estado: request.estado,
       }))
-
       setSubmittedRequests(formattedRequests)
     }
   }, [])
 
   useEffect(() => {
     const data = getScholarships()
-  
     setScholarships(data)
   }, [])
-
-  //const alerts: Alert[] = [
-  //  {
-  //    id: 1,
-  //    tipo: 'warning',
-  //    titulo: 'Baja Asistencia',
-  //    descripcion: 'Tu asistencia está por debajo del 70%. Es importante que aumentes tu asistencia a clases.',
-  //    fecha: '2024-01-15',
-  //  },
-  //  {
-  //    id: 2,
-  //    tipo: 'info',
-  //    titulo: 'Recordatorio de Pagos',
-  //    descripcion: 'Te recordamos que las cuotas de este semestre vencen el 20 de enero.',
-  //    fecha: '2024-01-10',
-  //  },
-  //  {
-  //    id: 3,
-  //    tipo: 'success',
-  //    titulo: 'Mejora Académica Detectada',
-  //    descripcion: 'Felicidades, tu desempeño en los últimos exámenes ha mejorado significativamente.',
-  //    fecha: '2024-01-05',
-  //  },
-  //]
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -127,25 +84,11 @@ export default function EstudiantePage() {
 
   const handleSubmitRequest = (e: React.FormEvent) => {
     e.preventDefault()
-    // VALIDACIÓN HU-14
 
     if (!formData.motivo.trim() || !formData.descripcion.trim()) {
       alert('Todos los campos son obligatorios')
       return
     }
-    //if (!formData.motivo.trim() || !formData.descripcion.trim()) {
-    //  return
-    //}
-
-    //const newRequest = {
-    //  id: submittedRequests.length + 1,
-    //  motivo: formData.motivo,
-    //  descripcion: formData.descripcion,
-    //  fecha: new Date().toISOString().split('T')[0],
-    //  estado: 'Pendiente',
-    //}
-
-    //NUEVA SOLICITUD DE TUTORÍA
 
     const newRequest = {
       id: submittedRequests.length + 1,
@@ -157,19 +100,14 @@ export default function EstudiantePage() {
     }
 
     const updatedRequests = [...submittedRequests, newRequest]
-
     setSubmittedRequests(updatedRequests)
-
-    localStorage.setItem(
-      'tutoringRequests',
-      JSON.stringify(updatedRequests)
-    )
+    localStorage.setItem('tutoringRequests', JSON.stringify(updatedRequests))
+    
     setFormData({ motivo: '', descripcion: '' })
     setSuccessMessage('Solicitud de tutoría enviada exitosamente')
     
     setTimeout(() => setSuccessMessage(''), 3000)
   }
-
 
   const menuItems = [
     { label: 'Solicitar Tutoría', href: '/dashboard/estudiante', icon: <MessageSquare className="h-5 w-5" /> },
@@ -184,20 +122,13 @@ export default function EstudiantePage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground">Bienvenido, Estudiante</h1>
           <p className="text-foreground/70">Gestiona tus solicitudes de tutoría, becas y alertas académicas</p>
-          {/* ALERTA IA MAURICIO */}
-
+          
           <div className="mt-4 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-4">
             <div className="flex items-start gap-3">
               <TrendingUp className="mt-1 h-5 w-5 text-yellow-400" />
-
               <div>
-                <p className="font-semibold text-yellow-400">
-                  Riesgo Académico Detectado
-                </p>
-
-                <p className="text-sm text-foreground/80">
-                  El sistema recomienda solicitar acompañamiento académico preventivo.
-                </p>
+                <p className="font-semibold text-yellow-400">Riesgo Académico Detectado</p>
+                <p className="text-sm text-foreground/80">El sistema recomienda solicitar acompañamiento académico preventivo.</p>
               </div>
             </div>
           </div>
@@ -208,7 +139,7 @@ export default function EstudiantePage() {
           {[
             { id: 'solicitudes', label: 'Solicitar Tutoría' },
             { id: 'becas', label: 'Becas Disponibles' },
-            //{ id: 'alertas', label: 'Mis Alertas' },
+            { id: 'alertas', label: 'Mis Alertas' },
           ].map(tabItem => (
             <button
               key={tabItem.id}
@@ -227,7 +158,6 @@ export default function EstudiantePage() {
         {/* Solicitar Tutoría Tab */}
         {tab === 'solicitudes' && (
           <div className="space-y-6">
-            {/* Form */}
             <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
               <h2 className="mb-6 text-xl font-bold text-foreground flex items-center gap-2">
                 <MessageSquare className="h-5 w-5" />
@@ -275,7 +205,6 @@ export default function EstudiantePage() {
               </form>
             </div>
 
-            {/* Submitted Requests */}
             {submittedRequests.length > 0 && (
               <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
                 <h3 className="mb-6 text-lg font-bold text-foreground">Mis Solicitudes</h3>
@@ -311,17 +240,15 @@ export default function EstudiantePage() {
                       <Gift className="h-6 w-6 text-secondary" />
                       <h3 className="text-lg font-bold text-foreground">{scholarship.nombre}</h3>
                     </div>
-                    <p className="text-foreground/70 mb-4">
-                      Información de beca disponible para estudiantes.
-                    </p>
+                    <p className="text-foreground/70 mb-4">Información de beca disponible para estudiantes.</p>
                     <div className="mb-4">
                       <p className="text-sm font-semibold text-foreground mb-2">Requisitos:</p>
                       <ul className="space-y-1 text-sm text-foreground/70">
-                      <li className="flex items-center gap-2">
-                        <span className="h-1.5 w-1.5 rounded-full bg-secondary"></span>
-                        {scholarship.requisitos}
-                      </li>
-                    </ul>
+                        <li className="flex items-center gap-2">
+                          <span className="h-1.5 w-1.5 rounded-full bg-secondary"></span>
+                          {scholarship.requisitos}
+                        </li>
+                      </ul>
                     </div>
                   </div>
                   
@@ -329,13 +256,11 @@ export default function EstudiantePage() {
                     <div className="rounded-lg border border-secondary/20 bg-secondary/10 px-4 py-2">
                       <p className="text-xs text-foreground/70">Monto Mensual</p>
                       <p className="text-2xl font-bold text-secondary flex items-center gap-1">
-                        
+                        <DollarSign className="h-5 w-5" />
                         {scholarship.monto}
                       </p>
                     </div>
-                    <Button className="bg-gradient-to-r from-primary to-secondary">
-                      Solicitar
-                    </Button>
+                    <Button className="bg-gradient-to-r from-primary to-secondary">Solicitar</Button>
                   </div>
                 </div>
               </div>
@@ -348,27 +273,18 @@ export default function EstudiantePage() {
           <div className="space-y-4">
             {alerts.map(alert => (
               <div
-              key={alert.student}
-              className="rounded-xl border border-red-500/20 bg-red-500/10 p-6 backdrop-blur-xl"
-            >
-              <div className="flex items-start gap-4">
-                <AlertTriangle className="mt-1 h-5 w-5 text-red-400" />
-            
-                <div className="flex-1">
-                  <h3 className="font-semibold text-foreground">
-                    {alert.student}
-                  </h3>
-            
-                  <p className="text-sm text-foreground/80 mt-1">
-                    {alert.message}
-                  </p>
-            
-                  <p className="text-xs text-yellow-400 mt-2">
-                    {alert.recommendation}
-                  </p>
+                key={alert.student}
+                className="rounded-xl border border-red-500/20 bg-red-500/10 p-6 backdrop-blur-xl"
+              >
+                <div className="flex items-start gap-4">
+                  <AlertTriangle className="mt-1 h-5 w-5 text-red-400" />
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-foreground">{alert.student}</h3>
+                    <p className="text-sm text-foreground/80 mt-1">{alert.message}</p>
+                    <p className="text-xs text-yellow-400 mt-2">{alert.recommendation}</p>
+                  </div>
                 </div>
               </div>
-            </div>
             ))}
           </div>
         )}
