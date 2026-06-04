@@ -1,7 +1,6 @@
 import {
   fetchSupportProcedures,
   fetchSupportProcedureById,
-  fetchSupportProceduresByStudentCode,
   fetchSupportProceduresByStatus
 } from "../api/supportProceduresApi"
 
@@ -11,10 +10,6 @@ export const getSupportProcedures = () => {
 
 export const getSupportProcedureById = (id) => {
   return fetchSupportProcedureById(id)
-}
-
-export const getSupportProceduresByStudentCode = (codigoEstudiante) => {
-  return fetchSupportProceduresByStudentCode(codigoEstudiante)
 }
 
 export const getSupportProceduresByStatus = (estado) => {
