@@ -37,7 +37,7 @@ export default function LoginPage() {
     const users: Record<string, string> = {
       administrador: 'admin@edu.com',
       tutor: 'tutor@edu.com',
-      coordinador: 'coord@edu.com',
+      //coordinador: 'coord@edu.com',
       estudiante: 'student@edu.com',
     }
   
@@ -55,7 +55,7 @@ export default function LoginPage() {
       const routes: Record<string, string> = {
         administrador: '/dashboard/administrador',
         tutor: '/dashboard/tutor',
-        coordinador: '/dashboard/coordinador',
+        //coordinador: '/dashboard/coordinador',
         estudiante: '/dashboard/estudiante',
       }
       router.push(routes[role])
@@ -220,9 +220,6 @@ export default function LoginPage() {
                       </SelectItem>
                       <SelectItem value="estudiante">
                         Estudiante
-                      </SelectItem>
-                      <SelectItem value="coordinador">
-                        Coordinador
                       </SelectItem>
                     </SelectContent>
                   </Select>
