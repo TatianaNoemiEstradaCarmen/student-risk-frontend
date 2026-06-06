@@ -1,5 +1,6 @@
 'use client'
 
+import SupportProceduresPanel from '@/components/admin/SupportProceduresPanel'
 import { useState, useEffect } from 'react'
 import {
   Users,
@@ -28,7 +29,13 @@ import {
 
 export default function AdministradorPage() {
   const [tab, setTab] = useState<
-    'estudiantes' | 'roles' | 'becas' | 'reportes' | 'hallazgos' | 'academico'
+    | 'estudiantes'
+    | 'roles'
+    | 'becas'
+    | 'reportes'
+    | 'hallazgos'
+    | 'academico'
+    | 'tramitesApoyo'
   >('estudiantes')
 
   const [students, setStudents] = useState<any[]>([])
@@ -320,6 +327,7 @@ export default function AdministradorPage() {
             { id: 'roles', label: 'Asignación de Roles' },
             { id: 'hallazgos', label: 'Hallazgos Entrevistas' },
             { id: 'academico', label: 'Registro Académico' },
+            { id: 'tramitesApoyo', label: 'Trámites de Apoyo' },
             { id: 'reportes', label: 'Reportes' },
           ].map(tabItem => (
             <button
@@ -603,6 +611,11 @@ export default function AdministradorPage() {
           </div>
         )}
 
+        {/* ── TRÁMITES DE APOYO ── */}
+        {tab === 'tramitesApoyo' && (
+          <SupportProceduresPanel />
+        )}
+
         {/* ── ROLES ── */}
         {tab === 'roles' && (
           <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
@@ -653,8 +666,6 @@ export default function AdministradorPage() {
             {currentRole === 'estudiante' && <p className="mt-4 text-purple-500">Vista de estudiante visible</p>}
           </div>
         )}
-
-       
 
       </div>
     </SidebarLayout>
