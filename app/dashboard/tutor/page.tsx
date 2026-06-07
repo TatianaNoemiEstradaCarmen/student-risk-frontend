@@ -12,12 +12,13 @@ import {
 } from 'lucide-react'
 
 // ALERTAS IA MAURICIO
-import { alerts } from '@/src/data/students'
+import { alerts, students } from '@/src/data/students'
 
 // API TUTORÍAS ALESSANDRO
 import { getTutoringRequests } from '@/src/services/tutoringService'
 
 import { SidebarLayout } from '@/components/dashboard/sidebar-layout'
+import { calculateRisk } from '@/src/services/riskEngine'
 import { Button } from '@/components/ui/button'
 
 export default function TutorPage() {
@@ -131,34 +132,70 @@ export default function TutorPage() {
           </div>
 
           <div className="space-y-3">
-            {alerts.map((alert: any) => (
-              <div
-                key={alert.student}
-                className="flex items-center justify-between rounded-lg border border-primary/20 bg-background/30 p-4 hover:bg-primary/5 transition-colors"
-              >
-                <div className="flex-1">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/20">
-                      <AlertTriangle className="h-5 w-5 text-red-400" />
+            {alerts.map((alert: any) => {
+              // Buscar el estudiante real en la data para usar sus valores reales (HU-05)
+              const realStudent = students.find(s => s.name === alert.student)
+              const studentRisk = realStudent
+                ? { riskScore: realStudent.riskScore, components: realStudent.riskComponents, recommendation: realStudent.recommendation }
+                : calculateRisk({ gpa: 0, attendance: 0, cursosDesaprobados: 0 })
+              const comps: any = studentRisk.components
+              return (
+                <div
+                  key={alert.student}
+                  className="rounded-lg border border-primary/20 bg-background/30 p-4 hover:bg-primary/5 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/20">
+                          <AlertTriangle className="h-5 w-5 text-red-400" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-foreground">
+                            {alert.student}
+                          </p>
+                          <p className="text-xs text-foreground/60">
+                            {alert.message}
+                          </p>
+                          <p className="mt-1 text-xs text-yellow-400">
+                            {alert.recommendation}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold text-foreground">
-                        {alert.student}
-                      </p>
-                      <p className="text-xs text-foreground/60">
-                        {alert.message}
-                      </p>
-                      <p className="mt-1 text-xs text-yellow-400">
-                        {alert.recommendation}
-                      </p>
+                    <div className="flex flex-col items-end gap-1">
+                      <div className="rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-400">
+                        ALTO
+                      </div>
+                      <span className="text-xs text-foreground/60">
+                        Score: {studentRisk.riskScore.toFixed(1)}
+                      </span>
                     </div>
                   </div>
+                  {/* Barra de desglose de componentes de riesgo (HU-05) */}
+                  <div className="mt-3 grid grid-cols-4 gap-2">
+                    {[
+                      { label: 'Notas', score: comps.gpaScore, color: 'bg-red-500' },
+                      { label: 'Asistencia', score: comps.attendanceScore, color: 'bg-yellow-500' },
+                      { label: 'Desaprobados', score: comps.failedCoursesScore, color: 'bg-orange-500' },
+                      { label: 'Progreso', score: comps.progressScore, color: 'bg-blue-500' },
+                    ].map((item) => (
+                      <div key={item.label} className="text-center">
+                        <div className="h-1.5 w-full rounded-full bg-primary/10">
+                          <div
+                            className={`h-1.5 rounded-full ${item.color} transition-all`}
+                            style={{ width: `${item.score}%` }}
+                          />
+                        </div>
+                        <p className="mt-1 text-[10px] text-foreground/50">
+                          {item.label} {item.score.toFixed(0)}%
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-400">
-                  ALTO
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
 

@@ -20,6 +20,7 @@ import { getScholarships } from '@/src/services/scholarshipService'
 // ALERTAS IA MAURICIO
 import { alerts } from '@/src/data/students'
 import { SidebarLayout } from '@/components/dashboard/sidebar-layout'
+import { calculateRisk } from '@/src/services/riskEngine'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -271,21 +272,61 @@ export default function EstudiantePage() {
         {/* Alertas Tab */}
         {tab === 'alertas' && (
           <div className="space-y-4">
-            {alerts.map(alert => (
-              <div
-                key={alert.student}
-                className="rounded-xl border border-red-500/20 bg-red-500/10 p-6 backdrop-blur-xl"
-              >
-                <div className="flex items-start gap-4">
-                  <AlertTriangle className="mt-1 h-5 w-5 text-red-400" />
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-foreground">{alert.student}</h3>
-                    <p className="text-sm text-foreground/80 mt-1">{alert.message}</p>
-                    <p className="text-xs text-yellow-400 mt-2">{alert.recommendation}</p>
+            {alerts.map(alert => {
+              // Desglose de riesgo usando el motor centralizado (HU-05)
+              const myRisk = calculateRisk({
+                gpa: 11,
+                attendance: 65,
+                cursosDesaprobados: 2,
+                creditosAprobados: 72,
+                creditosTotales: 200,
+              })
+              const comps: any = myRisk.components
+              return (
+                <div
+                  key={alert.student}
+                  className="rounded-xl border border-red-500/20 bg-red-500/10 p-6 backdrop-blur-xl"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-4">
+                      <AlertTriangle className="mt-1 h-5 w-5 text-red-400" />
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-foreground">{alert.student}</h3>
+                        <p className="text-sm text-foreground/80 mt-1">{alert.message}</p>
+                        <p className="text-xs text-yellow-400 mt-2">{alert.recommendation}</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <span className="rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-400">
+                        Score: {myRisk.riskScore.toFixed(1)}
+                      </span>
+                    </div>
+                  </div>
+                  {/* Desglose de componentes (HU-05) */}
+                  <div className="mt-4 grid grid-cols-4 gap-3">
+                    {[
+                      { label: 'Notas', score: comps.gpaScore, color: 'bg-red-500' },
+                      { label: 'Asistencia', score: comps.attendanceScore, color: 'bg-yellow-500' },
+                      { label: 'Desaprobados', score: comps.failedCoursesScore, color: 'bg-orange-500' },
+                      { label: 'Progreso', score: comps.progressScore, color: 'bg-blue-500' },
+                    ].map((item) => (
+                      <div key={item.label} className="text-center">
+                        <p className="text-[10px] text-foreground/50 mb-1">{item.label}</p>
+                        <div className="h-2 w-full rounded-full bg-black/20 overflow-hidden">
+                          <div
+                            className={`h-2 rounded-full ${item.color} transition-all`}
+                            style={{ width: `${item.score}%` }}
+                          />
+                        </div>
+                        <p className="mt-1 text-xs font-medium text-foreground/80">
+                          {item.score.toFixed(0)}%
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
