@@ -1,5 +1,6 @@
 'use client'
 
+import AcademicRecommendationsPanel from '@/components/student/AcademicRecommendationsPanel'
 import { useState, useEffect } from 'react'
 import {
   BookOpen,
@@ -43,7 +44,7 @@ interface TutoringRequest {
 }
 
 export default function EstudiantePage() {
-  const [tab, setTab] = useState<'solicitudes' | 'becas' | 'alertas'>('solicitudes')
+  const [tab, setTab] = useState<'solicitudes' | 'recomendaciones' | 'becas' | 'alertas'>('solicitudes')
   
   const [formData, setFormData] = useState({
     motivo: '',
@@ -112,6 +113,7 @@ export default function EstudiantePage() {
 
   const menuItems = [
     { label: 'Solicitar Tutoría', href: '/dashboard/estudiante', icon: <MessageSquare className="h-5 w-5" /> },
+    { label: 'Recomendaciones de Apoyo', href: '/dashboard/estudiante', icon: <BookOpen className="h-5 w-5" /> },
     { label: 'Becas Disponibles', href: '/dashboard/estudiante?tab=becas', icon: <Gift className="h-5 w-5" /> },
     { label: 'Mis Alertas Académicas', href: '/dashboard/estudiante?tab=alertas', icon: <AlertCircle className="h-5 w-5" /> },
   ]
@@ -122,7 +124,7 @@ export default function EstudiantePage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground">Bienvenido, Estudiante</h1>
-          <p className="text-foreground/70">Gestiona tus solicitudes de tutoría, becas y alertas académicas</p>
+          <p className="text-foreground/70">Gestiona tus solicitudes de tutoría, becas, recomendaciones y alertas académicas</p>
           
           <div className="mt-4 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-4">
             <div className="flex items-start gap-3">
@@ -139,6 +141,7 @@ export default function EstudiantePage() {
         <div className="mb-6 flex flex-wrap gap-2 border-b border-primary/20">
           {[
             { id: 'solicitudes', label: 'Solicitar Tutoría' },
+            { id: 'recomendaciones', label: 'Recomendaciones de Apoyo' },
             { id: 'becas', label: 'Becas Disponibles' },
             { id: 'alertas', label: 'Mis Alertas' },
           ].map(tabItem => (
@@ -230,6 +233,11 @@ export default function EstudiantePage() {
           </div>
         )}
 
+        {/* Recomendaciones de Apoyo Tab */}
+        {tab === 'recomendaciones' && (
+          <AcademicRecommendationsPanel />
+        )}
+
         {/* Becas Tab */}
         {tab === 'becas' && (
           <div className="space-y-6">
@@ -273,7 +281,6 @@ export default function EstudiantePage() {
         {tab === 'alertas' && (
           <div className="space-y-4">
             {alerts.map(alert => {
-              // Desglose de riesgo usando el motor centralizado (HU-05)
               const myRisk = calculateRisk({
                 gpa: 11,
                 attendance: 65,
@@ -281,7 +288,9 @@ export default function EstudiantePage() {
                 creditosAprobados: 72,
                 creditosTotales: 200,
               })
+
               const comps: any = myRisk.components
+
               return (
                 <div
                   key={alert.student}
@@ -302,7 +311,7 @@ export default function EstudiantePage() {
                       </span>
                     </div>
                   </div>
-                  {/* Desglose de componentes (HU-05) */}
+
                   <div className="mt-4 grid grid-cols-4 gap-3">
                     {[
                       { label: 'Notas', score: comps.gpaScore, color: 'bg-red-500' },
