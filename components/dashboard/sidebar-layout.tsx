@@ -1,127 +1,144 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
-import { LogOut, Menu, X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
+import { ReactNode, useEffect, useState } from 'react'
+import { LogOut } from 'lucide-react'
 
-interface SidebarLayoutProps {
-  role: 'administrador' | 'tutor' | 'coordinador' | 'estudiante'
-  children: React.ReactNode
-  menuItems: Array<{
-    label: string
-    href: string
-    icon: React.ReactNode
-  }>
+interface MenuItem {
+  label: string
+  href: string
+  icon?: ReactNode
 }
 
-export function SidebarLayout({ role, children, menuItems }: SidebarLayoutProps) {
-  const router = useRouter()
+interface SidebarLayoutProps {
+  role: string
+  menuItems: MenuItem[]
+  children: ReactNode
+}
+
+export function SidebarLayout({ role, menuItems, children }: SidebarLayoutProps) {
   const pathname = usePathname()
-  const [isMobileOpen, setIsMobileOpen] = useState(false)
-  const [userRole, setUserRole] = useState<string | null>(null)
+  const router = useRouter()
+  const [currentUrl, setCurrentUrl] = useState('')
+
+  const updateCurrentUrl = () => {
+    if (typeof window !== 'undefined') {
+      setCurrentUrl(`${window.location.pathname}${window.location.search}`)
+    }
+  }
 
   useEffect(() => {
-    const storedRole = sessionStorage.getItem('userRole')
-    if (!storedRole) {
-      router.push('/')
-    } else {
-      setUserRole(storedRole)
+    updateCurrentUrl()
+
+    window.addEventListener('popstate', updateCurrentUrl)
+    window.addEventListener('student-tab-change', updateCurrentUrl)
+    window.addEventListener('admin-tab-change', updateCurrentUrl)
+
+    return () => {
+      window.removeEventListener('popstate', updateCurrentUrl)
+      window.removeEventListener('student-tab-change', updateCurrentUrl)
+      window.removeEventListener('admin-tab-change', updateCurrentUrl)
     }
-  }, [router])
+  }, [pathname])
+
+  const isItemActive = (href: string) => {
+    const activeUrl = currentUrl || pathname
+
+    const [currentPath, currentQuery = ''] = activeUrl.split('?')
+    const [hrefPath, hrefQuery = ''] = href.split('?')
+
+    if (hrefQuery) {
+      if (activeUrl === href) return true
+
+      if (
+        !currentQuery &&
+        currentPath === hrefPath &&
+        hrefQuery === 'tab=solicitudes'
+      ) {
+        return true
+      }
+
+      return false
+    }
+
+    return currentPath === hrefPath && !currentQuery
+  }
+
+  const handleMenuClick = () => {
+    setTimeout(() => {
+      updateCurrentUrl()
+      window.dispatchEvent(new Event('student-tab-change'))
+      window.dispatchEvent(new Event('admin-tab-change'))
+    }, 50)
+  }
 
   const handleLogout = () => {
-    sessionStorage.removeItem('userRole')
+    localStorage.removeItem('userRole')
+    localStorage.removeItem('role')
+    localStorage.removeItem('currentRole')
     router.push('/')
   }
 
-  if (!userRole) return null
-
-  const roleLabels = {
-    administrador: 'Administrador',
-    tutor: 'Tutor Académico',
-    coordinador: 'Coordinador Académico',
-    estudiante: 'Estudiante',
-  }
-
   return (
-    <div className="flex min-h-screen bg-background">
-      {/* Mobile Menu Button */}
-      <button
-        onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="fixed left-4 top-4 z-40 p-2 rounded-lg hover:bg-primary/20 lg:hidden"
-      >
-        {isMobileOpen ? (
-          <X className="h-6 w-6 text-foreground" />
-        ) : (
-          <Menu className="h-6 w-6 text-foreground" />
-        )}
-      </button>
-
-      {/* Sidebar */}
-      <aside
-        className={`fixed left-0 top-0 z-30 h-screen w-64 transform border-r border-primary/20 bg-card/40 backdrop-blur-xl transition-transform duration-300 lg:relative lg:translate-x-0 ${
-          isMobileOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
-        <div className="flex h-full flex-col p-6">
-          {/* Logo */}
-          <div className="mb-8 mt-4 flex items-center gap-3 lg:mt-0">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-secondary">
-              <span className="text-sm font-bold text-white">E</span>
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="flex min-h-screen">
+        <aside className="flex w-72 shrink-0 flex-col border-r border-primary/10 bg-background/95 p-6">
+          <div className="mb-8 flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-secondary font-bold text-primary-foreground">
+              E
             </div>
-            <span className="text-xl font-bold text-foreground">EduSupport</span>
+            <h1 className="text-2xl font-bold text-foreground">EduSupport</h1>
           </div>
 
-          {/* Role Badge */}
-          <div className="mb-8 rounded-lg border border-secondary/20 bg-secondary/10 px-3 py-2">
-            <p className="text-xs text-foreground/60">ROL ACTUAL</p>
-            <p className="text-sm font-semibold text-secondary">
-            {roleLabels[userRole as keyof typeof roleLabels]}
+          <div className="mb-8 rounded-xl border border-primary/20 bg-primary/5 p-4">
+            <p className="text-xs font-semibold uppercase text-foreground/60">
+              Rol actual
+            </p>
+            <p className="mt-1 font-bold capitalize text-primary">
+              {role}
             </p>
           </div>
 
-          {/* Navigation Menu */}
-          <nav className="flex-1 space-y-2">
-            {menuItems.map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
-                onClick={(e) => {
-                  e.preventDefault()
-                  router.push(item.href)
-                  setIsMobileOpen(false)
-                }}
-                className={`flex items-center gap-3 rounded-lg px-4 py-3 transition-colors ${
-                  pathname === item.href
-                    ? 'bg-primary/20 text-primary'
-                    : 'text-foreground/70 hover:bg-primary/10 hover:text-foreground'
-                }`}
-              >
-                <span className="h-5 w-5">{item.icon}</span>
-                <span className="text-sm font-medium">{item.label}</span>
-              </a>
-            ))}
+          <nav className="flex flex-1 flex-col gap-3">
+            {menuItems.map((item) => {
+              const active = isItemActive(item.href)
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={handleMenuClick}
+                  className={`flex items-center gap-4 rounded-xl px-4 py-4 text-sm font-semibold transition-colors ${
+                    active
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-foreground/70 hover:bg-primary/5 hover:text-foreground'
+                  }`}
+                >
+                  <span className="shrink-0">
+                    {item.icon}
+                  </span>
+                  <span>{item.label}</span>
+                </Link>
+              )
+            })}
           </nav>
 
-          {/* Logout Button */}
-          <Button
+          <button
             onClick={handleLogout}
-            variant="outline"
-            className="w-full border-destructive/20 text-destructive hover:bg-destructive/10"
+            className="mt-8 flex items-center justify-center gap-3 rounded-xl border border-red-500/30 px-4 py-3 font-semibold text-red-500 transition-colors hover:bg-red-500/10"
           >
-            <LogOut className="mr-2 h-4 w-4" />
+            <LogOut className="h-5 w-5" />
             Cerrar Sesión
-          </Button>
-        </div>
-      </aside>
+          </button>
+        </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-auto">
-        <div className="p-6 pt-16 lg:pt-6">
+        <main className="flex-1 p-8">
           {children}
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   )
 }
+
+export default SidebarLayout
