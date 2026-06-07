@@ -77,7 +77,7 @@ export function SidebarLayout({ role, children, menuItems }: SidebarLayoutProps)
           <div className="mb-8 rounded-lg border border-secondary/20 bg-secondary/10 px-3 py-2">
             <p className="text-xs text-foreground/60">ROL ACTUAL</p>
             <p className="text-sm font-semibold text-secondary">
-              {roleLabels[userRole]}
+            {roleLabels[userRole as keyof typeof roleLabels]}
             </p>
           </div>
 

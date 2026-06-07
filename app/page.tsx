@@ -37,7 +37,7 @@ export default function LoginPage() {
     const users: Record<string, string> = {
       administrador: 'admin@edu.com',
       tutor: 'tutor@edu.com',
-      coordinador: 'coord@edu.com',
+      //coordinador: 'coord@edu.com',
       estudiante: 'student@edu.com',
     }
   
@@ -55,7 +55,7 @@ export default function LoginPage() {
       const routes: Record<string, string> = {
         administrador: '/dashboard/administrador',
         tutor: '/dashboard/tutor',
-        coordinador: '/dashboard/coordinador',
+        //coordinador: '/dashboard/coordinador',
         estudiante: '/dashboard/estudiante',
       }
       router.push(routes[role])
@@ -221,9 +221,6 @@ export default function LoginPage() {
                       <SelectItem value="estudiante">
                         Estudiante
                       </SelectItem>
-                      <SelectItem value="coordinador">
-                        Coordinador
-                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -254,14 +251,14 @@ export default function LoginPage() {
             </form>
 
             {/* Forgot Password Link */}
-            <div className="text-center">
+            {/*<div className="text-center">
               <a
                 href="#"
                 className="text-sm text-secondary hover:text-secondary/80 transition-colors underline-offset-4 hover:underline"
               >
                 ¿Olvidaste tu contraseña?
               </a>
-            </div>
+            </div>*/}
           </div>
 
           {/* Footer Text */}
