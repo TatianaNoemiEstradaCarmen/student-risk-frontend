@@ -9,10 +9,13 @@ import {
   Calendar,
   Clock,
   CheckCircle,
+  Info,
 } from 'lucide-react'
 
-// ALERTAS IA MAURICIO
-import { alerts, students } from '@/src/data/students'
+// Fuente única de datos: misma que consume la vista de administrador (HU-07).
+// El módulo src/data/students.js envuelve src/api/studentsApi.js, así que
+// cuando se conecte la base de datos, ambas vistas se mantendrán sincronizadas.
+import { alerts, students, riskStats } from '@/src/data/students'
 
 // API TUTORÍAS ALESSANDRO
 import { getTutoringRequests } from '@/src/services/tutoringService'
@@ -27,7 +30,7 @@ export default function TutorPage() {
 
   useEffect(() => {
     const savedRequests = localStorage.getItem('tutoringRequests')
-  
+
     if (savedRequests) {
       setRequests(JSON.parse(savedRequests))
     } else {
@@ -49,6 +52,14 @@ export default function TutorPage() {
         return ''
     }
   }
+
+  // Color de severidad para los chips de factores (HU-07)
+  const factorSeverityClass = (sev: string) =>
+    sev === 'high'
+      ? 'bg-red-500/20 text-red-300 border-red-500/30'
+      : sev === 'medium'
+        ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30'
+        : 'bg-primary/20 text-primary border-primary/30'
 
   const menuItems = [
     {
@@ -101,7 +112,7 @@ export default function TutorPage() {
             },
             {
               label: 'Estudiantes Monitoreados',
-              value: '42',
+              value: riskStats.total ?? students.length,
               color: 'bg-primary/20 text-primary',
             },
           ].map((kpi, idx) => (
@@ -119,7 +130,7 @@ export default function TutorPage() {
           ))}
         </div>
 
-        {/* ALERTAS IA */}
+        {/* ALERTAS IA — HU-07: Factores que influyen en el riesgo */}
         <div className="mb-8 rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
           <div className="mb-6 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-xl font-bold text-foreground">
@@ -131,72 +142,113 @@ export default function TutorPage() {
             </span>
           </div>
 
-          <div className="space-y-3">
-            {alerts.map((alert: any) => {
-              // Buscar el estudiante real en la data para usar sus valores reales (HU-05)
-              const realStudent = students.find(s => s.name === alert.student)
-              const studentRisk = realStudent
-                ? { riskScore: realStudent.riskScore, components: realStudent.riskComponents, recommendation: realStudent.recommendation }
-                : calculateRisk({ gpa: 0, attendance: 0, cursosDesaprobados: 0 })
-              const comps: any = studentRisk.components
-              return (
-                <div
-                  key={alert.student}
-                  className="rounded-lg border border-primary/20 bg-background/30 p-4 hover:bg-primary/5 transition-colors"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/20">
-                          <AlertTriangle className="h-5 w-5 text-red-400" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-foreground">
-                            {alert.student}
-                          </p>
-                          <p className="text-xs text-foreground/60">
-                            {alert.message}
-                          </p>
-                          <p className="mt-1 text-xs text-yellow-400">
-                            {alert.recommendation}
-                          </p>
+          {alerts.length === 0 ? (
+            <div className="rounded-lg border border-green-500/20 bg-green-500/10 p-6 text-center">
+              <CheckCircle className="mx-auto mb-2 h-8 w-8 text-green-400" />
+              <p className="text-sm text-green-300">
+                No hay estudiantes en riesgo alto. Los datos de
+                {' '}{students.length} estudiantes fueron analizados.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {alerts.map((alert: any) => {
+                // La alerta ya viene pre-procesada desde src/data/students.js
+                // (HU-05 + HU-07: cada alerta incluye los factores que la
+                // provocan y una explicación clara para el tutor).
+                const comps: any = alert.components ?? {}
+                const factors: any[] = alert.factors ?? []
+                return (
+                  <div
+                    key={alert.id ?? alert.codigo ?? alert.student}
+                    className="rounded-lg border border-primary/20 bg-background/30 p-4 hover:bg-primary/5 transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/20">
+                            <AlertTriangle className="h-5 w-5 text-red-400" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">
+                              {alert.student}
+                            </p>
+                            <p className="text-xs text-foreground/60">
+                              {alert.carrera} · {alert.ciclo} · Cód. {alert.codigo}
+                            </p>
+                            <p className="text-xs text-foreground/60">
+                              {alert.message}
+                            </p>
+                            <p className="mt-1 text-xs text-yellow-400">
+                              {alert.recommendation}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <div className="rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-400">
-                        ALTO
-                      </div>
-                      <span className="text-xs text-foreground/60">
-                        Score: {studentRisk.riskScore.toFixed(1)}
-                      </span>
-                    </div>
-                  </div>
-                  {/* Barra de desglose de componentes de riesgo (HU-05) */}
-                  <div className="mt-3 grid grid-cols-4 gap-2">
-                    {[
-                      { label: 'Notas', score: comps.gpaScore, color: 'bg-red-500' },
-                      { label: 'Asistencia', score: comps.attendanceScore, color: 'bg-yellow-500' },
-                      { label: 'Desaprobados', score: comps.failedCoursesScore, color: 'bg-orange-500' },
-                      { label: 'Progreso', score: comps.progressScore, color: 'bg-blue-500' },
-                    ].map((item) => (
-                      <div key={item.label} className="text-center">
-                        <div className="h-1.5 w-full rounded-full bg-primary/10">
-                          <div
-                            className={`h-1.5 rounded-full ${item.color} transition-all`}
-                            style={{ width: `${item.score}%` }}
-                          />
+                      <div className="flex flex-col items-end gap-1">
+                        <div className="rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-400">
+                          ALTO
                         </div>
-                        <p className="mt-1 text-[10px] text-foreground/50">
-                          {item.label} {item.score.toFixed(0)}%
+                        <span className="text-xs text-foreground/60">
+                          Score: {alert.riskScore?.toFixed(1)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Factores que influyen en el riesgo (HU-07) */}
+                    {factors.length > 0 && (
+                      <div className="mt-3 rounded-md border border-primary/10 bg-background/40 p-3">
+                        <p className="mb-2 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-foreground/60">
+                          <Info className="h-3 w-3" />
+                          Factores que influyen en el riesgo
                         </p>
+                        <div className="flex flex-wrap gap-2">
+                          {factors.map((f) => (
+                            <span
+                              key={f.key}
+                              title={f.message}
+                              className={`cursor-help rounded-full border px-2.5 py-1 text-[11px] font-medium ${factorSeverityClass(f.severity)}`}
+                            >
+                              {f.label}
+                            </span>
+                          ))}
+                        </div>
+                        {alert.explanation && (
+                          <p className="mt-2 text-xs text-foreground/70">
+                            {alert.explanation}
+                          </p>
+                        )}
                       </div>
-                    ))}
+                    )}
+
+                    {/* Barra de desglose de componentes de riesgo (HU-05) */}
+                    {comps.gpaScore != null && (
+                      <div className="mt-3 grid grid-cols-4 gap-2">
+                        {[
+                          { label: 'Notas', score: comps.gpaScore, color: 'bg-red-500' },
+                          { label: 'Asistencia', score: comps.attendanceScore, color: 'bg-yellow-500' },
+                          { label: 'Desaprobados', score: comps.failedCoursesScore, color: 'bg-orange-500' },
+                          { label: 'Progreso', score: comps.progressScore, color: 'bg-blue-500' },
+                        ].map((item) => (
+                          <div key={item.label} className="text-center">
+                            <div className="h-1.5 w-full rounded-full bg-primary/10">
+                              <div
+                                className={`h-1.5 rounded-full ${item.color} transition-all`}
+                                style={{ width: `${item.score}%` }}
+                              />
+                            </div>
+                            <p className="mt-1 text-[10px] text-foreground/50">
+                              {item.label} {item.score.toFixed(0)}%
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         {/* TABLA SOLICITUDES */}

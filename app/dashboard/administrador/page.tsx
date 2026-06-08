@@ -14,7 +14,9 @@ import {
   Pencil,
   Trash2,
 } from 'lucide-react'
-import { fetchStudents } from '@/src/api/studentsApi'
+// Fuente unica de datos: admin y tutor consumen la misma fuente.
+// Ver src/data/students.js -> src/api/studentsApi.js
+import { students as sharedStudents } from '@/src/data/students'
 import { getScholarships } from '@/src/services/scholarshipService'
 import { calculateRisk } from '@/src/services/riskEngine'
 import { SidebarLayout } from '@/components/dashboard/sidebar-layout'
@@ -89,17 +91,19 @@ export default function AdministradorPage() {
   // ─── Cargar datos desde localStorage o API ───────────────────────────────
 
   useEffect(() => {
+    // HU-07: la fuente unica de datos es src/data/students.js (que envuelve
+    // src/api/studentsApi.js). Tanto admin como tutor consumen exactamente
+    // los mismos registros, riesgo, score, factores y explicacion.
     const saved = localStorage.getItem('students')
     if (saved) {
       const parsed = JSON.parse(saved)
-      // Si los datos guardados no tienen riskScore, recalcularlos
       const needsRecalc = parsed.length > 0 && parsed[0].riskScore === undefined
       if (needsRecalc) {
         const recalculated = parsed.map((s: any) => {
           const assessment = calculateRisk({
-            gpa: parseFloat(s.nota) || 0,
-            attendance: parseFloat(s.asistencia) || 0,
-            cursosDesaprobados: parseInt(s.desaprobados) || 0,
+            gpa: parseFloat(s.gpa ?? s.nota) || 0,
+            attendance: parseFloat(s.attendance ?? s.asistencia) || 0,
+            cursosDesaprobados: parseInt(s.cursosDesaprobados ?? s.desaprobados) || 0,
             creditosAprobados: s.creditosAprobados || 0,
             creditosTotales: s.creditosTotales || 200,
           })
@@ -111,35 +115,8 @@ export default function AdministradorPage() {
         setStudents(parsed)
       }
     } else {
-      const data = fetchStudents()
-      const formatted = data.map((student: any) => {
-        // Calcular riesgo con el motor centralizado (HU-05)
-        const assessment = calculateRisk({
-          gpa: student.gpa,
-          attendance: student.attendance,
-          cursosDesaprobados: student.cursosDesaprobados,
-          creditosAprobados: student.creditosAprobados,
-          creditosTotales: student.creditosTotales,
-        })
-        return {
-          id: student.id,
-          nombre: student.name,
-          codigo: student.codigo,
-          correo: student.correo,
-          ciclo: student.ciclo,
-          carrera: student.carrera,
-          gpa: student.gpa,
-          attendance: student.attendance,
-          creditosAprobados: student.creditosAprobados,
-          creditosTotales: student.creditosTotales,
-          cursosDesaprobados: student.cursosDesaprobados,
-          risk: assessment.risk,
-          riskScore: assessment.riskScore,
-          riskComponents: assessment.components,
-          recommendation: assessment.recommendation,
-        }
-      })
-      setStudents(formatted)
+      setStudents(sharedStudents)
+      localStorage.setItem('students', JSON.stringify(sharedStudents))
     }
   }, [])
 
@@ -591,6 +568,38 @@ export default function AdministradorPage() {
                               </>
                             ) : (
                               <span className="text-foreground/40">—</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col gap-1 max-w-[240px]">
+                            {student.riskFactors && student.riskFactors.length > 0 ? (
+                              <>
+                                <div className="flex flex-wrap gap-1">
+                                  {student.riskFactors.map((f: any) => (
+                                    <span
+                                      key={f.key}
+                                      title={f.message}
+                                      className={`cursor-help rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+                                        f.severity === 'high'
+                                          ? 'bg-red-500/20 text-red-300 border-red-500/30'
+                                          : f.severity === 'medium'
+                                            ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30'
+                                            : 'bg-primary/20 text-primary border-primary/30'
+                                      }`}
+                                    >
+                                      {f.label}
+                                    </span>
+                                  ))}
+                                </div>
+                                {student.riskExplanation && (
+                                  <p className="text-[10px] leading-snug text-foreground/60">
+                                    {student.riskExplanation}
+                                  </p>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-[10px] text-foreground/40">Sin factores críticos</span>
                             )}
                           </div>
                         </td>
