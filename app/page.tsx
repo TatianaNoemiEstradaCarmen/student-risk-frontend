@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect } from "react"
+import { supabase } from "@/src/lib/supabase"
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { Eye, EyeOff, Lock, Mail, Users } from 'lucide-react'
@@ -24,6 +26,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
