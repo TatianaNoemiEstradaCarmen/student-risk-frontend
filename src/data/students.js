@@ -7,8 +7,11 @@ const rawStudents = [
     correo: "juan@universidad.edu",
     ciclo: "5to ciclo",
     carrera: "Ingeniería de Sistemas",
-    gpa: 10,
-    attendance: 45,
+    gpa: 5,
+    attendance: 30,
+    creditosAprobados: 30,
+    creditosTotales: 200,
+    cursosDesaprobados: 4,
     role: "student",
     historialSeguimiento: [
       { fecha: "2026-05-20", nota: "Derivación a tutoría académica por bajas notas." },
@@ -24,6 +27,9 @@ const rawStudents = [
     carrera: "Administración",
     gpa: 17,
     attendance: 92,
+    creditosAprobados: 128,
+    creditosTotales: 200,
+    cursosDesaprobados: 0,
     role: "student",
     historialSeguimiento: [] // Sin problemas previos
   },
@@ -34,8 +40,11 @@ const rawStudents = [
     correo: "carlos@universidad.edu",
     ciclo: "3er ciclo",
     carrera: "Contabilidad",
-    gpa: 11,
-    attendance: 85,
+    gpa: 8,
+    attendance: 40,
+    creditosAprobados: 25,
+    creditosTotales: 200,
+    cursosDesaprobados: 3,
     role: "student",
     historialSeguimiento: [
       { fecha: "2026-05-15", nota: "Se le asignó un plan de nivelación en matemáticas." }
@@ -50,36 +59,19 @@ const rawStudents = [
     carrera: "Psicología",
     gpa: 14,
     attendance: 65,
+    creditosAprobados: 96,
+    creditosTotales: 200,
+    cursosDesaprobados: 1,
     role: "student",
     historialSeguimiento: []
   }
 ];
 
-// 2. Lógica de clasificación del nivel de riesgo
-const calculateRisk = (gpa, attendance) => {
-  if (attendance < 60 || gpa < 12) return "HIGH";
-  if ((attendance >= 60 && attendance <= 75) || (gpa >= 12 && gpa <= 13)) return "MEDIUM";
-  return "LOW";
-};
+// 2. Importar el nuevo motor de riesgo
+import { processStudentsWithRisk } from '@/src/services/riskEngine';
 
-// 3. Recomendaciones automáticas
-const generateRecommendation = (risk) => {
-  switch (risk) {
-    case "HIGH": return "Requiere intervención inmediata";
-    case "MEDIUM": return "Necesita seguimiento académico";
-    default: return "Rendimiento estable";
-  }
-};
-
-// 4. Exportación de la data procesada (Criterio 2 y 3 de HU-03)
-export const students = rawStudents.map((student) => {
-  const risk = calculateRisk(student.gpa, student.attendance);
-  return {
-    ...student,
-    risk,
-    recommendation: generateRecommendation(risk)
-  };
-});
+// 3. Exportación de la data procesada usando el nuevo motor centralizado (HU-05)
+export const students = processStudentsWithRisk(rawStudents);
 
 // 5. Estadísticas y Alertas para el Dashboard
 export const riskStats = {

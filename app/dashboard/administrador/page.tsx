@@ -11,13 +11,17 @@ import {
   Search,
   AlertCircle,
   CheckCircle,
+  Pencil,
+  Trash2,
 } from 'lucide-react'
 import { fetchStudents } from '@/src/api/studentsApi'
 import { getScholarships } from '@/src/services/scholarshipService'
+import { calculateRisk } from '@/src/services/riskEngine'
 import { SidebarLayout } from '@/components/dashboard/sidebar-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+
 import {
   Select,
   SelectContent,
@@ -26,9 +30,17 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
+import SupportProceduresPanel from '@/components/admin/SupportProceduresPanel'
+
 export default function AdministradorPage() {
   const [tab, setTab] = useState<
-    'estudiantes' | 'roles' | 'becas' | 'reportes' | 'hallazgos' | 'academico'
+    | 'estudiantes'
+    | 'roles'
+    | 'becas'
+    | 'reportes'
+    | 'hallazgos'
+    | 'academico'
+    | 'tramitesApoyo'
   >('estudiantes')
 
   const [students, setStudents] = useState<any[]>([])
@@ -79,19 +91,54 @@ export default function AdministradorPage() {
   useEffect(() => {
     const saved = localStorage.getItem('students')
     if (saved) {
-      setStudents(JSON.parse(saved))
+      const parsed = JSON.parse(saved)
+      // Si los datos guardados no tienen riskScore, recalcularlos
+      const needsRecalc = parsed.length > 0 && parsed[0].riskScore === undefined
+      if (needsRecalc) {
+        const recalculated = parsed.map((s: any) => {
+          const assessment = calculateRisk({
+            gpa: parseFloat(s.nota) || 0,
+            attendance: parseFloat(s.asistencia) || 0,
+            cursosDesaprobados: parseInt(s.desaprobados) || 0,
+            creditosAprobados: s.creditosAprobados || 0,
+            creditosTotales: s.creditosTotales || 200,
+          })
+          return { ...s, ...assessment }
+        })
+        setStudents(recalculated)
+        localStorage.setItem('students', JSON.stringify(recalculated))
+      } else {
+        setStudents(parsed)
+      }
     } else {
       const data = fetchStudents()
-      const formatted = data.map((student: any) => ({
-        id: student.id,
-        nombre: student.name,
-        codigo: student.codigo,
-        correo: student.correo,
-        ciclo: student.ciclo,
-        carrera: student.carrera,
-        risk: student.risk,
-        recommendation: student.recommendation,
-      }))
+      const formatted = data.map((student: any) => {
+        // Calcular riesgo con el motor centralizado (HU-05)
+        const assessment = calculateRisk({
+          gpa: student.gpa,
+          attendance: student.attendance,
+          cursosDesaprobados: student.cursosDesaprobados,
+          creditosAprobados: student.creditosAprobados,
+          creditosTotales: student.creditosTotales,
+        })
+        return {
+          id: student.id,
+          nombre: student.name,
+          codigo: student.codigo,
+          correo: student.correo,
+          ciclo: student.ciclo,
+          carrera: student.carrera,
+          gpa: student.gpa,
+          attendance: student.attendance,
+          creditosAprobados: student.creditosAprobados,
+          creditosTotales: student.creditosTotales,
+          cursosDesaprobados: student.cursosDesaprobados,
+          risk: assessment.risk,
+          riskScore: assessment.riskScore,
+          riskComponents: assessment.components,
+          recommendation: assessment.recommendation,
+        }
+      })
       setStudents(formatted)
     }
   }, [])
@@ -131,6 +178,17 @@ export default function AdministradorPage() {
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
+  const handleScholarshipInputChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const { name, value } = e.target
+
+    setScholarshipForm(prev => ({
+      ...prev,
+      [name]: value,
+    }))
+  }
+
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {}
     if (!formData.nombre.trim()) newErrors.nombre = 'El nombre es requerido'
@@ -140,6 +198,7 @@ export default function AdministradorPage() {
     if (!formData.ciclo) newErrors.ciclo = 'El ciclo es requerido'
     if (!formData.carrera) newErrors.carrera = 'La carrera es requerida'
     setErrors(newErrors)
+
     return Object.keys(newErrors).length === 0
   }
 
@@ -147,10 +206,20 @@ export default function AdministradorPage() {
     e.preventDefault()
     if (!validateForm()) return
 
+    // Calcular riesgo al agregar estudiante (HU-05)
+    const defaultRisk = calculateRisk({
+      gpa: 0,
+      attendance: 0,
+      cursosDesaprobados: 0,
+    })
+
     const newStudent = {
       id: students.length + 1,
       ...formData,
-      risk: 'LOW',
+      risk: defaultRisk.risk,
+      riskScore: defaultRisk.riskScore,
+      riskComponents: defaultRisk.components,
+      recommendation: defaultRisk.recommendation,
     }
 
     const updated = [...students, newStudent]
@@ -169,11 +238,6 @@ export default function AdministradorPage() {
   )
 
   // ─── Becas ───────────────────────────────────────────────────────────────
-
-  const handleScholarshipInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setScholarshipForm(prev => ({ ...prev, [name]: value }))
-  }
 
   const handleAddScholarship = (e: React.FormEvent) => {
     e.preventDefault()
@@ -244,21 +308,51 @@ export default function AdministradorPage() {
   const handleAddAcademicRecord = (e: React.FormEvent) => {
     e.preventDefault()
 
+    let updatedRecords
     if (editingAcademicId !== null) {
-      const updated = academicRecords.map(r =>
+      updatedRecords = academicRecords.map(r =>
         r.id === editingAcademicId ? { ...r, ...academicForm } : r
       )
-      setAcademicRecords(updated)
-      localStorage.setItem('academicRecords', JSON.stringify(updated))
+      setAcademicRecords(updatedRecords)
+      localStorage.setItem('academicRecords', JSON.stringify(updatedRecords))
       setEditingAcademicId(null)
     } else {
       const newRecord = { id: Date.now(), ...academicForm }
-      const updated = [...academicRecords, newRecord]
-      setAcademicRecords(updated)
-      localStorage.setItem('academicRecords', JSON.stringify(updated))
+      updatedRecords = [...academicRecords, newRecord]
+      setAcademicRecords(updatedRecords)
+      localStorage.setItem('academicRecords', JSON.stringify(updatedRecords))
     }
 
     setAcademicForm({ estudiante: '', nota: '', asistencia: '', desaprobados: '' })
+
+    // ─── Recalcular riesgo del estudiante usando el motor centralizado (HU-05) ───
+    if (academicForm.estudiante) {
+      const gpa = parseFloat(academicForm.nota) || 0
+      const attendance = parseFloat(academicForm.asistencia) || 0
+      const cursosDesaprobados = parseInt(academicForm.desaprobados) || 0
+
+      const assessment = calculateRisk({
+        gpa,
+        attendance,
+        cursosDesaprobados,
+      })
+
+      const updatedStudents = students.map(s => {
+        if (s.nombre?.toLowerCase() === academicForm.estudiante.toLowerCase()) {
+          return {
+            ...s,
+            risk: assessment.risk,
+            riskScore: assessment.riskScore,
+            riskComponents: assessment.components,
+            recommendation: assessment.recommendation,
+          }
+        }
+        return s
+      })
+
+      setStudents(updatedStudents)
+      localStorage.setItem('students', JSON.stringify(updatedStudents))
+    }
   }
 
   const handleEditAcademicRecord = (id: number) => {
@@ -308,9 +402,15 @@ export default function AdministradorPage() {
       <div className="max-w-7xl">
 
         {/* Header */}
+
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Panel de Administración</h1>
-          <p className="text-foreground/70">Gestiona estudiantes, becas y asignación de roles</p>
+          <h1 className="text-3xl font-bold text-foreground">
+            Panel de Administración
+          </h1>
+
+          <p className="text-foreground/70">
+            Gestiona estudiantes, becas y asignación de roles
+          </p>
         </div>
 
         <div className="mb-6 flex flex-wrap gap-2 border-b border-primary/20">
@@ -320,6 +420,7 @@ export default function AdministradorPage() {
             { id: 'roles', label: 'Asignación de Roles' },
             { id: 'hallazgos', label: 'Hallazgos Entrevistas' },
             { id: 'academico', label: 'Registro Académico' },
+            { id: 'tramitesApoyo', label: 'Trámites de Apoyo' },
             { id: 'reportes', label: 'Reportes' },
           ].map(tabItem => (
             <button
@@ -345,11 +446,17 @@ export default function AdministradorPage() {
               {successMessage && (
                 <div className="mb-6 flex items-center gap-3 rounded-lg border border-green-500/20 bg-green-500/10 p-4">
                   <CheckCircle className="h-5 w-5 text-green-500" />
-                  <p className="text-sm text-green-500">{successMessage}</p>
+
+                  <p className="text-sm text-green-500">
+                    {successMessage}
+                  </p>
                 </div>
               )}
 
-              <form onSubmit={handleAddStudent} className="space-y-5">
+              <form
+                onSubmit={handleAddStudent}
+                className="space-y-5"
+              >
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="nombre">Nombre Completo</Label>
@@ -400,9 +507,13 @@ export default function AdministradorPage() {
 
             <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
               <div className="mb-6 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-foreground">Estudiantes Registrados</h2>
+                <h2 className="text-xl font-bold text-foreground">
+                  Estudiantes Registrados
+                </h2>
+
                 <div className="relative w-64">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/50" />
+
                   <Input
                     placeholder="Buscar estudiante..."
                     value={searchQuery}
@@ -422,9 +533,11 @@ export default function AdministradorPage() {
                       <th className="px-4 py-3 text-left font-semibold text-foreground">Ciclo</th>
                       <th className="px-4 py-3 text-left font-semibold text-foreground">Carrera</th>
                       <th className="px-4 py-3 text-left font-semibold text-foreground">Riesgo IA</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground">Puntaje</th>
                       <th className="px-4 py-3 text-left font-semibold text-foreground">Acciones</th>
                     </tr>
                   </thead>
+
                   <tbody>
                     {filteredStudents.map(student => (
                       <tr key={student.id} className="border-b border-primary/10 hover:bg-primary/5 transition-colors">
@@ -441,6 +554,45 @@ export default function AdministradorPage() {
                           }`}>
                             {student.risk || 'LOW'}
                           </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col gap-1 min-w-[120px]">
+                            {student.riskScore != null ? (
+                              <>
+                                <span className={`font-medium text-xs ${
+                                  student.riskScore < 40 ? 'text-red-400'
+                                  : student.riskScore < 65 ? 'text-yellow-400'
+                                  : 'text-green-400'
+                                }`}>
+                                  Score: {student.riskScore.toFixed(1)}
+                                </span>
+                                {/* Barras de desglose de componentes (HU-05) */}
+                                {student.riskComponents && (
+                                  <div className="grid grid-cols-2 gap-x-2 gap-y-1 mt-1">
+                                    {[
+                                      { label: 'Notas', score: student.riskComponents.gpaScore },
+                                      { label: 'Asistencia', score: student.riskComponents.attendanceScore },
+                                      { label: 'Desaprobados', score: student.riskComponents.failedCoursesScore },
+                                      { label: 'Progreso', score: student.riskComponents.progressScore },
+                                    ].map((comp) => (
+                                      <div key={comp.label} className="flex items-center gap-1">
+                                        <span className="text-[9px] text-foreground/50 w-16 truncate">{comp.label}</span>
+                                        <div className="flex-1 h-1.5 rounded-full bg-primary/10 overflow-hidden">
+                                          <div
+                                            className="h-full rounded-full bg-primary/60 transition-all"
+                                            style={{ width: `${comp.score}%` }}
+                                          />
+                                        </div>
+                                        <span className="text-[9px] text-foreground/50 w-4 text-right">{comp.score.toFixed(0)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-foreground/40">—</span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3">
                           <Button variant="ghost" size="sm" className="text-secondary hover:bg-secondary/10">Editar</Button>
@@ -603,6 +755,11 @@ export default function AdministradorPage() {
           </div>
         )}
 
+        {/* ── TRÁMITES DE APOYO ── */}
+        {tab === 'tramitesApoyo' && (
+          <SupportProceduresPanel />
+        )}
+
         {/* ── ROLES ── */}
         {tab === 'roles' && (
           <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
@@ -653,8 +810,6 @@ export default function AdministradorPage() {
             {currentRole === 'estudiante' && <p className="mt-4 text-purple-500">Vista de estudiante visible</p>}
           </div>
         )}
-
-       
 
       </div>
     </SidebarLayout>

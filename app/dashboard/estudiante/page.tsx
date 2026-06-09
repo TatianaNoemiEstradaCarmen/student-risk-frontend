@@ -1,5 +1,6 @@
 'use client'
 
+import AcademicRecommendationsPanel from '@/components/student/AcademicRecommendationsPanel'
 import { useState, useEffect } from 'react'
 import {
   BookOpen,
@@ -13,13 +14,11 @@ import {
   CheckCircle
 } from 'lucide-react'
 
-// TUTORÍAS API ALESSANDRO
 import { getTutoringRequests } from '@/src/services/tutoringService'
 import { getScholarships } from '@/src/services/scholarshipService'
-
-// ALERTAS IA MAURICIO
 import { alerts } from '@/src/data/students'
 import { SidebarLayout } from '@/components/dashboard/sidebar-layout'
+import { calculateRisk } from '@/src/services/riskEngine'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -41,9 +40,11 @@ interface TutoringRequest {
   estado: string
 }
 
+type StudentTab = 'solicitudes' | 'recomendaciones' | 'becas' | 'alertas'
+
 export default function EstudiantePage() {
-  const [tab, setTab] = useState<'solicitudes' | 'becas' | 'alertas'>('solicitudes')
-  
+  const [tab, setTab] = useState<StudentTab>('solicitudes')
+
   const [formData, setFormData] = useState({
     motivo: '',
     descripcion: '',
@@ -77,6 +78,42 @@ export default function EstudiantePage() {
     setScholarships(data)
   }, [])
 
+  useEffect(() => {
+    const syncTabFromUrl = () => {
+      const params = new URLSearchParams(window.location.search)
+      const currentTab = params.get('tab')
+
+      if (
+        currentTab === 'solicitudes' ||
+        currentTab === 'recomendaciones' ||
+        currentTab === 'becas' ||
+        currentTab === 'alertas'
+      ) {
+        setTab(currentTab)
+      } else {
+        setTab('solicitudes')
+      }
+    }
+
+    syncTabFromUrl()
+
+    window.addEventListener('popstate', syncTabFromUrl)
+    window.addEventListener('student-tab-change', syncTabFromUrl)
+
+    return () => {
+      window.removeEventListener('popstate', syncTabFromUrl)
+      window.removeEventListener('student-tab-change', syncTabFromUrl)
+    }
+  }, [])
+
+  const handleTabChange = (newTab: StudentTab) => {
+    setTab(newTab)
+
+    const nextUrl = `/dashboard/estudiante?tab=${newTab}`
+    window.history.replaceState(null, '', nextUrl)
+    window.dispatchEvent(new Event('student-tab-change'))
+  }
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
@@ -102,15 +139,16 @@ export default function EstudiantePage() {
     const updatedRequests = [...submittedRequests, newRequest]
     setSubmittedRequests(updatedRequests)
     localStorage.setItem('tutoringRequests', JSON.stringify(updatedRequests))
-    
+
     setFormData({ motivo: '', descripcion: '' })
     setSuccessMessage('Solicitud de tutoría enviada exitosamente')
-    
+
     setTimeout(() => setSuccessMessage(''), 3000)
   }
 
   const menuItems = [
-    { label: 'Solicitar Tutoría', href: '/dashboard/estudiante', icon: <MessageSquare className="h-5 w-5" /> },
+    { label: 'Solicitar Tutoría', href: '/dashboard/estudiante?tab=solicitudes', icon: <MessageSquare className="h-5 w-5" /> },
+    { label: 'Recomendaciones de Apoyo', href: '/dashboard/estudiante?tab=recomendaciones', icon: <BookOpen className="h-5 w-5" /> },
     { label: 'Becas Disponibles', href: '/dashboard/estudiante?tab=becas', icon: <Gift className="h-5 w-5" /> },
     { label: 'Mis Alertas Académicas', href: '/dashboard/estudiante?tab=alertas', icon: <AlertCircle className="h-5 w-5" /> },
   ]
@@ -118,11 +156,10 @@ export default function EstudiantePage() {
   return (
     <SidebarLayout role="estudiante" menuItems={menuItems}>
       <div className="max-w-4xl">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground">Bienvenido, Estudiante</h1>
-          <p className="text-foreground/70">Gestiona tus solicitudes de tutoría, becas y alertas académicas</p>
-          
+          <p className="text-foreground/70">Gestiona tus solicitudes de tutoría, becas, recomendaciones y alertas académicas</p>
+
           <div className="mt-4 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-4">
             <div className="flex items-start gap-3">
               <TrendingUp className="mt-1 h-5 w-5 text-yellow-400" />
@@ -134,16 +171,16 @@ export default function EstudiantePage() {
           </div>
         </div>
 
-        {/* Tabs */}
         <div className="mb-6 flex flex-wrap gap-2 border-b border-primary/20">
           {[
             { id: 'solicitudes', label: 'Solicitar Tutoría' },
+            { id: 'recomendaciones', label: 'Recomendaciones de Apoyo' },
             { id: 'becas', label: 'Becas Disponibles' },
             { id: 'alertas', label: 'Mis Alertas' },
           ].map(tabItem => (
             <button
               key={tabItem.id}
-              onClick={() => setTab(tabItem.id as any)}
+              onClick={() => handleTabChange(tabItem.id as StudentTab)}
               className={`px-4 py-2 text-sm font-medium transition-colors ${
                 tab === tabItem.id
                   ? 'border-b-2 border-primary text-primary'
@@ -155,7 +192,6 @@ export default function EstudiantePage() {
           ))}
         </div>
 
-        {/* Solicitar Tutoría Tab */}
         {tab === 'solicitudes' && (
           <div className="space-y-6">
             <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
@@ -229,7 +265,10 @@ export default function EstudiantePage() {
           </div>
         )}
 
-        {/* Becas Tab */}
+        {tab === 'recomendaciones' && (
+          <AcademicRecommendationsPanel />
+        )}
+
         {tab === 'becas' && (
           <div className="space-y-6">
             {scholarships.map(scholarship => (
@@ -251,7 +290,7 @@ export default function EstudiantePage() {
                       </ul>
                     </div>
                   </div>
-                  
+
                   <div className="flex flex-col items-end gap-3">
                     <div className="rounded-lg border border-secondary/20 bg-secondary/10 px-4 py-2">
                       <p className="text-xs text-foreground/70">Monto Mensual</p>
@@ -268,24 +307,64 @@ export default function EstudiantePage() {
           </div>
         )}
 
-        {/* Alertas Tab */}
         {tab === 'alertas' && (
           <div className="space-y-4">
-            {alerts.map(alert => (
-              <div
-                key={alert.student}
-                className="rounded-xl border border-red-500/20 bg-red-500/10 p-6 backdrop-blur-xl"
-              >
-                <div className="flex items-start gap-4">
-                  <AlertTriangle className="mt-1 h-5 w-5 text-red-400" />
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-foreground">{alert.student}</h3>
-                    <p className="text-sm text-foreground/80 mt-1">{alert.message}</p>
-                    <p className="text-xs text-yellow-400 mt-2">{alert.recommendation}</p>
+            {alerts.map(alert => {
+              const myRisk = calculateRisk({
+                gpa: 11,
+                attendance: 65,
+                cursosDesaprobados: 2,
+                creditosAprobados: 72,
+                creditosTotales: 200,
+              })
+
+              const comps: any = myRisk.components
+
+              return (
+                <div
+                  key={alert.student}
+                  className="rounded-xl border border-red-500/20 bg-red-500/10 p-6 backdrop-blur-xl"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-4">
+                      <AlertTriangle className="mt-1 h-5 w-5 text-red-400" />
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-foreground">{alert.student}</h3>
+                        <p className="text-sm text-foreground/80 mt-1">{alert.message}</p>
+                        <p className="text-xs text-yellow-400 mt-2">{alert.recommendation}</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <span className="rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-400">
+                        Score: {myRisk.riskScore.toFixed(1)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-4 gap-3">
+                    {[
+                      { label: 'Notas', score: comps.gpaScore, color: 'bg-red-500' },
+                      { label: 'Asistencia', score: comps.attendanceScore, color: 'bg-yellow-500' },
+                      { label: 'Desaprobados', score: comps.failedCoursesScore, color: 'bg-orange-500' },
+                      { label: 'Progreso', score: comps.progressScore, color: 'bg-blue-500' },
+                    ].map((item) => (
+                      <div key={item.label} className="text-center">
+                        <p className="text-[10px] text-foreground/50 mb-1">{item.label}</p>
+                        <div className="h-2 w-full rounded-full bg-black/20 overflow-hidden">
+                          <div
+                            className={`h-2 rounded-full ${item.color} transition-all`}
+                            style={{ width: `${item.score}%` }}
+                          />
+                        </div>
+                        <p className="mt-1 text-xs font-medium text-foreground/80">
+                          {item.score.toFixed(0)}%
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
