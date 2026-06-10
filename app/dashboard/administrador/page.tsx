@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 // Fuente unica de datos: admin y tutor consumen la misma fuente.
 // Ver src/data/students.js -> src/api/studentsApi.js
-import { students as sharedStudents } from '@/src/data/students'
+import { getStudents } from '@/src/data/students'
 import { getScholarships } from '@/src/services/scholarshipService'
 import { calculateRisk } from '@/src/services/riskEngine'
 import { SidebarLayout } from '@/components/dashboard/sidebar-layout'
@@ -94,30 +94,34 @@ export default function AdministradorPage() {
     // HU-07: la fuente unica de datos es src/data/students.js (que envuelve
     // src/api/studentsApi.js). Tanto admin como tutor consumen exactamente
     // los mismos registros, riesgo, score, factores y explicacion.
-    const saved = localStorage.getItem('students')
-    if (saved) {
-      const parsed = JSON.parse(saved)
-      const needsRecalc = parsed.length > 0 && parsed[0].riskScore === undefined
-      if (needsRecalc) {
-        const recalculated = parsed.map((s: any) => {
-          const assessment = calculateRisk({
-            gpa: parseFloat(s.gpa ?? s.nota) || 0,
-            attendance: parseFloat(s.attendance ?? s.asistencia) || 0,
-            cursosDesaprobados: parseInt(s.cursosDesaprobados ?? s.desaprobados) || 0,
-            creditosAprobados: s.creditosAprobados || 0,
-            creditosTotales: s.creditosTotales || 200,
+    const loadStudents = async () => {
+      const saved = localStorage.getItem('students')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        const needsRecalc = parsed.length > 0 && parsed[0].riskScore === undefined
+        if (needsRecalc) {
+          const recalculated = parsed.map((s: any) => {
+            const assessment = calculateRisk({
+              gpa: parseFloat(s.gpa ?? s.nota) || 0,
+              attendance: parseFloat(s.attendance ?? s.asistencia) || 0,
+              cursosDesaprobados: parseInt(s.cursosDesaprobados ?? s.desaprobados) || 0,
+              creditosAprobados: s.creditosAprobados || 0,
+              creditosTotales: s.creditosTotales || 200,
+            })
+            return { ...s, ...assessment }
           })
-          return { ...s, ...assessment }
-        })
-        setStudents(recalculated)
-        localStorage.setItem('students', JSON.stringify(recalculated))
+          setStudents(recalculated)
+          localStorage.setItem('students', JSON.stringify(recalculated))
+        } else {
+          setStudents(parsed)
+        }
       } else {
-        setStudents(parsed)
+        const fetched = await getStudents()
+        setStudents(fetched)
+        localStorage.setItem('students', JSON.stringify(fetched))
       }
-    } else {
-      setStudents(sharedStudents)
-      localStorage.setItem('students', JSON.stringify(sharedStudents))
     }
+    loadStudents()
   }, [])
 
   useEffect(() => {
