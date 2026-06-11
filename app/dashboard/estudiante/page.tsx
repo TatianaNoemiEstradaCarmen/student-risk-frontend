@@ -29,6 +29,10 @@ interface Scholarship {
   nombre: string
   monto: string
   requisitos: string
+  tipo: string
+  promedio_minimo: number
+  cupos: number
+  fecha_fin: string
 }
 
 interface TutoringRequest {
@@ -74,8 +78,12 @@ export default function EstudiantePage() {
   }, [])
 
   useEffect(() => {
-    const data = getScholarships()
-    setScholarships(data)
+    const loadScholarships = async () => {
+      const data = await getScholarships()
+      setScholarships(data || [])
+    }
+  
+    loadScholarships()
   }, [])
 
   useEffect(() => {
@@ -289,13 +297,29 @@ export default function EstudiantePage() {
                         </li>
                       </ul>
                     </div>
+                    <div className="grid grid-cols-2 gap-3 mt-4 text-sm">
+                      <p>
+                        <strong>Tipo:</strong> {scholarship.tipo}
+                      </p>
+
+                      <p>
+                        <strong>Promedio mínimo:</strong> {scholarship.promedio_minimo}
+                      </p>
+
+                      <p>
+                        <strong>Cupos:</strong> {scholarship.cupos}
+                      </p>
+
+                      <p>
+                        <strong>Vigencia:</strong> {scholarship.fecha_fin}
+                      </p>
+                    </div>
                   </div>
 
                   <div className="flex flex-col items-end gap-3">
                     <div className="rounded-lg border border-secondary/20 bg-secondary/10 px-4 py-2">
                       <p className="text-xs text-foreground/70">Monto Mensual</p>
                       <p className="text-2xl font-bold text-secondary flex items-center gap-1">
-                        <DollarSign className="h-5 w-5" />
                         {scholarship.monto}
                       </p>
                     </div>
