@@ -23,6 +23,7 @@ import { SidebarLayout } from '@/components/dashboard/sidebar-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import ImportStudentsPanel from '@/components/admin/ImportStudentsPanel'
 
 import {
   Select,
@@ -43,6 +44,7 @@ export default function AdministradorPage() {
     | 'hallazgos'
     | 'academico'
     | 'tramitesApoyo'
+    | 'importacion'
   >('estudiantes')
 
   const [students, setStudents] = useState<any[]>([])
@@ -378,6 +380,7 @@ export default function AdministradorPage() {
     { label: 'Registro de Becas', href: '/dashboard/administrador?tab=becas', icon: <BookOpen className="h-5 w-5" /> },
     { label: 'Asignación de Roles', href: '/dashboard/administrador?tab=roles', icon: <UserCheck className="h-5 w-5" /> },
     { label: 'Configuración', href: '/dashboard/administrador?tab=config', icon: <Settings className="h-5 w-5" /> },
+    { label: 'Importar Datos', href: '/dashboard/administrador?tab=importacion', icon: <Plus className="h-5 w-5" />},
   ]
 
   const currentRole = userRoles[0]?.role || 'estudiante'
@@ -777,6 +780,10 @@ export default function AdministradorPage() {
         {/* ── TRÁMITES DE APOYO ── */}
         {tab === 'tramitesApoyo' && (
           <SupportProceduresPanel />
+        )}
+
+        {tab === 'importacion' && (
+          <ImportStudentsPanel />
         )}
 
         {/* ── ROLES ── */}
