@@ -12,10 +12,7 @@ export default function AcademicRecommendationsPanel() {
   return (
     <section className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
       <div className="mb-6">
-        <p className="text-sm font-semibold uppercase tracking-widest text-primary">
-          HU-13
-        </p>
-        <h2 className="mt-2 text-2xl font-bold text-foreground">
+<h2 className="mt-2 text-2xl font-bold text-foreground">
           Recomendaciones de apoyo académico
         </h2>
         <p className="mt-2 max-w-3xl text-foreground/70">
