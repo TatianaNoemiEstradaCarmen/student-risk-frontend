@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 import {
@@ -26,25 +26,22 @@ import { Button } from '@/components/ui/button'
 // IMPORTAR CLIENTE DE SUPABASE DE TATIANA
 import { supabase } from '@/src/lib/supabase'
 
-export default function TutorPage() {
+// 1. RENOMBRAMOS LA FUNCIÓN PRINCIPAL A TutorContent
+function TutorContent() {
   const searchParams = useSearchParams()
-  const activeTab = searchParams.get('tab') || 'alertas' // Pestaña activa por URL
+  const activeTab = searchParams.get('tab') || 'alertas'
 
-  // SOLICITUDES DE TUTORÍA
   const [requests, setRequests] = useState<any[]>([])
 
-  // ESTADOS DE LA HU-06 (ALERTAS REALES)
   const [alerts, setAlerts] = useState<any[]>([])
   const [filtroRiesgo, setFiltroRiesgo] = useState('TODOS')
   const [loadingAlerts, setLoadingAlerts] = useState(true)
 
-  // ESTADOS DE LA HU-03 (BÚSQUEDA Y PERFIL INTEGRAL)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
   const [studentsList, setStudentsList] = useState<any[]>([])
   const [loadingStudents, setLoadingStudents] = useState(false)
 
-  // Lista de estudiantes semilla (fallback) para asegurar datos visuales de la HU-03 si la BD está vacía
   const mockStudents = [
     {
       id: '1',
@@ -86,7 +83,6 @@ export default function TutorPage() {
     }
   ]
 
-  // Cargar solicitudes de tutoría
   useEffect(() => {
     const savedRequests = localStorage.getItem('tutoringRequests')
     if (savedRequests) {
@@ -97,7 +93,6 @@ export default function TutorPage() {
     }
   }, [])
 
-  // CARGAR ALERTAS DESDE SUPABASE (HU-06)
   useEffect(() => {
     async function fetchAlertas() {
       setLoadingAlerts(true)
@@ -119,7 +114,6 @@ export default function TutorPage() {
     fetchAlertas()
   }, [])
 
-  // CARGAR ESTUDIANTES DESDE SUPABASE O FALLBACK (HU-03)
   useEffect(() => {
     async function fetchEstudiantes() {
       setLoadingStudents(true)
@@ -128,7 +122,6 @@ export default function TutorPage() {
         .select('*')
 
       if (!error && data && data.length > 0) {
-        // Formatear la data de la BD adaptándola a la UI del perfil integral
         const formatted = data.map((est: any) => ({
           id: est.id.toString(),
           nombre: est.nombre,
@@ -142,14 +135,13 @@ export default function TutorPage() {
         }))
         setStudentsList(formatted)
       } else {
-        setStudentsList(mockStudents) // Carga los mocks si la tabla está vacía para no romper el QA
+        setStudentsList(mockStudents)
       }
       setLoadingStudents(false)
     }
     fetchEstudiantes()
   }, [])
 
-  // Filtrado de estudiantes en tiempo real para el buscador de la HU-03
   const filteredStudents = studentsList.filter(student =>
     student.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
     student.codigo.includes(searchQuery)
@@ -171,7 +163,7 @@ export default function TutorPage() {
   const menuItems = [
     {
       label: 'Alertas de Estudiantes',
-      href: '/dashboard/tutor?tab=alertas', // <-- Le agregamos el ?tab=alertas aquí
+      href: '/dashboard/tutor?tab=alertas',
       icon: <AlertTriangle className="h-5 w-5" />,
     },
     {
@@ -201,8 +193,6 @@ export default function TutorPage() {
           </p>
         </div>
 
-        {/* CONTENIDO CONDICIONAL POR PESTAÑAS (TABS ROUTING) */}
-        
         {/* TAB 1: ALERTAS IA (HU-06) */}
         {activeTab === 'alertas' && (
           <div className="mb-8 rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
@@ -265,7 +255,7 @@ export default function TutorPage() {
                               </div>
                             </div>
                           </div>
-                          <div className="rounded-full border px-3 py-1 text-xs font-semibold ${riskColorClass}">
+                          <div className={`rounded-full border px-3 py-1 text-xs font-semibold ${riskColorClass}`}>
                             {riskLabel}
                           </div>
                         </div>
@@ -469,5 +459,14 @@ export default function TutorPage() {
 
       </div>
     </SidebarLayout>
+  )
+}
+
+// 2. EXPORTAMOS EL COMPONENTE ENVUELTO EN SUSPENSE AL FINAL
+export default function TutorPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center text-foreground/50">Cargando panel del tutor...</div>}>
+      <TutorContent />
+    </Suspense>
   )
 }
