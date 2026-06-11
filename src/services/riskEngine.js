@@ -7,7 +7,10 @@
  *   - Failed courses (cursos desaprobados)
  *   - Academic progress (progreso: creditosAprobados / creditosTotales)
  *
- * Returns: { risk: 'LOW'|'MEDIUM'|'HIGH', riskScore: number, components: {...}, recommendation: string }
+ * Returns: { risk: 'LOW'|'MEDIUM'|'HIGH', riskScore, components, recommendation, factors, explanation }
+ *
+ * HU-05: Risk analysis engine (cálculo de riesgo).
+ * HU-07: Identificación de factores que influyen en el riesgo.
  */
 
 // ─── Weight configuration ───────────────────────────────────────────────────
@@ -17,6 +20,11 @@ const WEIGHTS = {
   FAILED_COURSES: 0.25, // 25 %
   PROGRESS: 0.15,       // 15 %
 }
+
+// ─── Thresholds (configurable) ──────────────────────────────────────────────
+// A component is considered a "risk factor" when its score falls below this
+// threshold (out of 100). Tuned to match the weighted risk categories.
+const RISK_FACTOR_THRESHOLD = 65
 
 // ─── Scorers (each returns 0-100, where 100 = best / lowest risk) ───────────
 
@@ -63,6 +71,121 @@ function scoreProgress(creditosAprobados, creditosTotales) {
   return ratio * 100
 }
 
+// ─── Factor identification (HU-07) ──────────────────────────────────────────
+
+/**
+ * Identify which factors are driving the risk.
+ * Each factor contains a human-readable message and the raw value observed
+ * in the student's data, so the UI can show a clear explanation.
+ *
+ * @param {Object} studentData
+ * @param {Object} components  Output from calculateRisk().components
+ * @returns {Array<{ key, label, message, severity, value, score, weight }>}
+ */
+export function getRiskFactors(studentData, components) {
+  if (!studentData || !components) return []
+
+  const {
+    gpa,
+    attendance,
+    cursosDesaprobados = 0,
+    creditosAprobados,
+    creditosTotales,
+  } = studentData
+
+  const factors = []
+
+  // ── Factor: Bajo promedio (low GPA) ──────────────────────────────────────
+  if (components.gpaScore < RISK_FACTOR_THRESHOLD) {
+    factors.push({
+      key: 'low_gpa',
+      label: 'Bajo promedio',
+      message:
+        gpa != null
+          ? `Promedio actual de ${gpa}/20, por debajo del mínimo recomendado (14/20).`
+          : 'No se registra promedio académico.',
+      severity: components.gpaScore < 40 ? 'high' : 'medium',
+      value: gpa,
+      score: components.gpaScore,
+      weight: WEIGHTS.GPA,
+    })
+  }
+
+  // ── Factor: Baja asistencia (low attendance) ─────────────────────────────
+  if (components.attendanceScore < RISK_FACTOR_THRESHOLD) {
+    factors.push({
+      key: 'low_attendance',
+      label: 'Baja asistencia',
+      message:
+        attendance != null
+          ? `Asistencia de ${attendance}%, inferior al 70% requerido.`
+          : 'No se registra asistencia.',
+      severity: components.attendanceScore < 50 ? 'high' : 'medium',
+      value: attendance,
+      score: components.attendanceScore,
+      weight: WEIGHTS.ATTENDANCE,
+    })
+  }
+
+  // ── Factor: Cursos desaprobados (failed courses) ─────────────────────────
+  if (components.failedCoursesScore < RISK_FACTOR_THRESHOLD) {
+    factors.push({
+      key: 'failed_courses',
+      label: 'Cursos desaprobados',
+      message:
+        cursosDesaprobados > 0
+          ? `${cursosDesaprobados} curso${cursosDesaprobados > 1 ? 's' : ''} desaprobado${
+              cursosDesaprobados > 1 ? 's' : ''
+            } en el ciclo actual.`
+          : 'Presenta cursos desaprobados en su historial.',
+      severity: cursosDesaprobados >= 3 ? 'high' : 'medium',
+      value: cursosDesaprobados,
+      score: components.failedCoursesScore,
+      weight: WEIGHTS.FAILED_COURSES,
+    })
+  }
+
+  // ── Factor: Bajo progreso académico ──────────────────────────────────────
+  if (components.progressScore < RISK_FACTOR_THRESHOLD) {
+    const progressPct =
+      creditosTotales && creditosAprobados != null
+        ? Math.round((creditosAprobados / creditosTotales) * 100)
+        : null
+    factors.push({
+      key: 'low_progress',
+      label: 'Bajo progreso académico',
+      message:
+        progressPct != null
+          ? `Progreso de ${progressPct}% de créditos aprobados (${creditosAprobados}/${creditosTotales}).`
+          : 'Progreso académico por debajo de lo esperado para su ciclo.',
+      severity: components.progressScore < 40 ? 'high' : 'medium',
+      value: progressPct,
+      score: components.progressScore,
+      weight: WEIGHTS.PROGRESS,
+    })
+  }
+
+  // Sort factors by impact (weight × inverse score) → most influential first
+  return factors.sort((a, b) => b.weight * (100 - b.score) - a.weight * (100 - a.score))
+}
+
+/**
+ * Build a clear, tutor-friendly explanation string from the detected factors.
+ * The text always references the actual data values from the student record,
+ * satisfying HU-07 acceptance criteria 2 & 3.
+ *
+ * @param {Object} studentData
+ * @param {Object} components
+ * @returns {string}
+ */
+export function buildRiskExplanation(studentData, components) {
+  const factors = getRiskFactors(studentData, components)
+  if (factors.length === 0) {
+    return 'El estudiante no presenta factores de riesgo significativos según los datos registrados.'
+  }
+  return factors.map((f) => f.message).join(' ')
+}
+
 // ─── Main calculation ───────────────────────────────────────────────────────
 
 /**
@@ -72,7 +195,7 @@ function scoreProgress(creditosAprobados, creditosTotales) {
  * @param {number} [studentData.cursosDesaprobados=0] - Number of failed courses
  * @param {number} [studentData.creditosAprobados] - Credits the student has passed (optional)
  * @param {number} [studentData.creditosTotales]   - Total credits for the career (optional)
- * @returns {{ risk: string, riskScore: number, components: object, recommendation: string }}
+ * @returns {{ risk, riskScore, components, recommendation, factors, explanation }}
  */
 export function calculateRisk(studentData) {
   const {
@@ -111,23 +234,31 @@ export function calculateRisk(studentData) {
     recommendation = 'Rendimiento estable'
   }
 
+  const components = {
+    gpaScore: Math.round(gpaScore * 100) / 100,
+    attendanceScore: Math.round(attendanceScore * 100) / 100,
+    failedCoursesScore: Math.round(failedCoursesScore * 100) / 100,
+    progressScore: Math.round(progressScore * 100) / 100,
+  }
+
+  // HU-07: Identify the factors driving the risk and build a clear explanation
+  const factors = getRiskFactors(studentData, components)
+  const explanation = buildRiskExplanation(studentData, components)
+
   return {
     risk,
     riskScore: Math.round(riskScore * 100) / 100,
-    components: {
-      gpaScore: Math.round(gpaScore * 100) / 100,
-      attendanceScore: Math.round(attendanceScore * 100) / 100,
-      failedCoursesScore: Math.round(failedCoursesScore * 100) / 100,
-      progressScore: Math.round(progressScore * 100) / 100,
-    },
+    components,
     recommendation,
+    factors,
+    explanation,
   }
 }
 
 /**
  * Process an array of students, adding risk assessment to each.
  * @param {Array} students
- * @returns {Array} Students with risk, riskScore, components, recommendation attached
+ * @returns {Array} Students with risk, riskScore, components, recommendation, factors, explanation
  */
 export function processStudentsWithRisk(students) {
   if (!Array.isArray(students)) return []
@@ -139,6 +270,8 @@ export function processStudentsWithRisk(students) {
       riskScore: assessment.riskScore,
       riskComponents: assessment.components,
       recommendation: assessment.recommendation,
+      riskFactors: assessment.factors,
+      riskExplanation: assessment.explanation,
     }
   })
 }

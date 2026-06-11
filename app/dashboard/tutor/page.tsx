@@ -26,7 +26,6 @@ import { Button } from '@/components/ui/button'
 // IMPORTAR CLIENTE DE SUPABASE DE TATIANA
 import { supabase } from '@/src/lib/supabase'
 
-// 1. RENOMBRAMOS LA FUNCIÓN PRINCIPAL A TutorContent
 function TutorContent() {
   const searchParams = useSearchParams()
   const activeTab = searchParams.get('tab') || 'alertas'
@@ -462,7 +461,6 @@ function TutorContent() {
   )
 }
 
-// 2. EXPORTAMOS EL COMPONENTE ENVUELTO EN SUSPENSE AL FINAL
 export default function TutorPage() {
   return (
     <Suspense fallback={<div className="flex h-screen items-center justify-center text-foreground/50">Cargando panel del tutor...</div>}>

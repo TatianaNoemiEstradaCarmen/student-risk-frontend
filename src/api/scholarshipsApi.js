@@ -1,36 +1,30 @@
-const scholarships = [
-  {
-    id: 1,
-    nombre: "Beca Excelencia Académica",
-    tipo: "Académica",
-    monto: "S/ 800",
-    requisitos: "Promedio mayor a 16 y matrícula activa",
-    promedioMinimo: 16,
-    cupos: 10,
-    fechaInicio: "2026-05-25",
-    fechaFin: "2026-06-30",
-    estado: "Disponible",
-    responsable: "Oficina de Bienestar Universitario"
-  },
-  {
-    id: 2,
-    nombre: "Beca Apoyo Económico",
-    tipo: "Socioeconómica",
-    monto: "S/ 500",
-    requisitos: "Situación vulnerable acreditada y asistencia mayor a 70%",
-    promedioMinimo: 12,
-    cupos: 15,
-    fechaInicio: "2026-05-25",
-    fechaFin: "2026-06-30",
-    estado: "Disponible",
-    responsable: "Área de Becas"
-  }
-]
+import { supabase } from '@/src/lib/supabase'
 
-export const fetchScholarships = () => {
-  return scholarships
+export const fetchScholarships = async () => {
+  const { data, error } = await supabase
+    .from('becas')
+    .select('*')
+    .eq('estado', 'Activa')
+
+  if (error) {
+    console.error(error)
+    return []
+  }
+
+  return data
 }
 
-export const fetchScholarshipById = (id) => {
-  return scholarships.find((scholarship) => scholarship.id === id)
+export const fetchScholarshipById = async (id) => {
+  const { data, error } = await supabase
+    .from('becas')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (error) {
+    console.error(error)
+    return null
+  }
+
+  return data
 }
