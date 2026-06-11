@@ -125,12 +125,18 @@ export default function AdministradorPage() {
   }, [])
 
   useEffect(() => {
-    const saved = localStorage.getItem('scholarships')
-    if (saved) {
-      setScholarships(JSON.parse(saved))
-    } else {
-      setScholarships(getScholarships())
+    const loadScholarships = async () => {
+      const saved = localStorage.getItem('scholarships')
+  
+      if (saved) {
+        setScholarships(JSON.parse(saved))
+      } else {
+        const data = await getScholarships()
+        setScholarships(data || [])
+      }
     }
+  
+    loadScholarships()
   }, [])
 
   useEffect(() => {
