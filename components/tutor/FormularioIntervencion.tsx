@@ -13,6 +13,9 @@ export default function FormularioIntervencion({
   nombreEstudiante: string;
   onGuardado: () => void;
 }) {
+  // Inicializamos la fecha con el día de hoy por comodidad
+  const hoy = new Date().toISOString().split('T')[0]
+  const [fecha, setFecha] = useState(hoy)
   const [tipoAccion, setTipoAccion] = useState('')
   const [observacion, setObservacion] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -24,9 +27,9 @@ export default function FormularioIntervencion({
     setError('')
     setExito(false)
 
-    // PRUEBA DE ACEPTACIÓN 2: Validar que no se permita guardar vacío
-    if (!tipoAccion || !observacion.trim()) {
-      setError('Debes seleccionar el tipo de acción y escribir una observación.')
+    // PRUEBA DE ACEPTACIÓN 2: Validar que no se permita guardar vacío (ahora incluye la fecha)
+    if (!fecha || !tipoAccion || !observacion.trim()) {
+      setError('Debes ingresar la fecha, el tipo de acción y escribir una observación.')
       return
     }
 
@@ -39,9 +42,9 @@ export default function FormularioIntervencion({
         .insert([
           {
             estudiante_id: estudianteId,
+            fecha: fecha, // <-- Ahora enviamos la fecha elegida por el tutor
             tipo_accion: tipoAccion,
             observacion: observacion.trim(),
-            // Por ahora lo dejamos fijo, luego se conecta con el login real
             responsable: 'Tutor Académico' 
           }
         ])
@@ -51,8 +54,8 @@ export default function FormularioIntervencion({
       setExito(true)
       setTipoAccion('')
       setObservacion('')
+      setFecha(hoy) // Reseteamos a la fecha actual
       
-      // Avisamos al componente padre que se guardó para que actualice la lista (HU-11)
       setTimeout(() => {
         setExito(false)
         onGuardado()
@@ -73,21 +76,35 @@ export default function FormularioIntervencion({
       </h4>
       
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Selector de Tipo de Acción */}
-        <div>
-          <label className="mb-1 block text-xs text-foreground/70">Tipo de Acción</label>
-          <select
-            value={tipoAccion}
-            onChange={(e) => setTipoAccion(e.target.value)}
-            className="w-full rounded-md border border-primary/20 bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-          >
-            <option value="">-- Selecciona una acción --</option>
-            <option value="Reunión Virtual">Reunión Virtual</option>
-            <option value="Reunión Presencial">Reunión Presencial</option>
-            <option value="Llamada Telefónica">Llamada Telefónica</option>
-            <option value="Correo Enviado">Correo Enviado</option>
-            <option value="Mensaje de WhatsApp">Mensaje de WhatsApp</option>
-          </select>
+        
+        <div className="grid grid-cols-2 gap-4">
+          {/* NUEVO: Selector de Fecha */}
+          <div>
+            <label className="mb-1 block text-xs text-foreground/70">Fecha de la acción</label>
+            <input
+              type="date"
+              value={fecha}
+              onChange={(e) => setFecha(e.target.value)}
+              className="w-full rounded-md border border-primary/20 bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+          </div>
+
+          {/* Selector de Tipo de Acción */}
+          <div>
+            <label className="mb-1 block text-xs text-foreground/70">Tipo de Acción</label>
+            <select
+              value={tipoAccion}
+              onChange={(e) => setTipoAccion(e.target.value)}
+              className="w-full rounded-md border border-primary/20 bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+            >
+              <option value="">-- Selecciona --</option>
+              <option value="Reunión Virtual">Reunión Virtual</option>
+              <option value="Reunión Presencial">Reunión Presencial</option>
+              <option value="Llamada Telefónica">Llamada Telefónica</option>
+              <option value="Correo Enviado">Correo Enviado</option>
+              <option value="Mensaje de WhatsApp">Mensaje de WhatsApp</option>
+            </select>
+          </div>
         </div>
 
         {/* Área de Observación */}
