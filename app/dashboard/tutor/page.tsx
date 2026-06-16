@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import FormularioIntervencion from '@/components/tutor/FormularioIntervencion'
+import HistorialIntervenciones from '@/components/tutor/HistorialIntervenciones' 
 
 import {
   AlertTriangle,
@@ -29,7 +30,18 @@ import { supabase } from '@/src/lib/supabase'
 
 function TutorContent() {
   const searchParams = useSearchParams()
-  const activeTab = searchParams.get('tab') || 'alertas'
+  const router = useRouter() 
+
+  // Separamos la lectura del parámetro para poder evaluarlo
+  const tabParam = searchParams.get('tab')
+  const activeTab = tabParam || 'alertas'
+
+  // Si no hay tab en la URL, forzamos a que aparezca para que el Sidebar no se confunda
+  useEffect(() => {
+    if (!tabParam) {
+      router.replace('/dashboard/tutor?tab=alertas')
+    }
+  }, [tabParam, router])
 
   const [requests, setRequests] = useState<any[]>([])
 
@@ -41,6 +53,9 @@ function TutorContent() {
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
   const [studentsList, setStudentsList] = useState<any[]>([])
   const [loadingStudents, setLoadingStudents] = useState(false)
+  
+  // Estado de control para refrescar el historial automáticamente al guardar
+  const [refreshHistorial, setRefreshHistorial] = useState(0)
 
   const mockStudents = [
     {
@@ -52,10 +67,7 @@ function TutorContent() {
       promedio: '11.2',
       asistencia: 68,
       riesgo: 'ALTO',
-      historial: [
-        { fecha: '2026-05-12', tutor: 'Carlos Alva', observacion: 'El estudiante menciona problemas de cruce de horarios con su trabajo pre-profesional.' },
-        { fecha: '2026-05-28', tutor: 'Carlos Alva', observacion: 'No asistió a la sesión de reforzamiento programada.' }
-      ]
+      historial: []
     },
     {
       id: '2',
@@ -66,9 +78,7 @@ function TutorContent() {
       promedio: '13.5',
       asistencia: 75,
       riesgo: 'MEDIO',
-      historial: [
-        { fecha: '2026-06-02', tutor: 'Carlos Alva', observacion: 'Muestra una mejora ligera en las notas del segundo consolidado.' }
-      ]
+      historial: []
     },
     {
       id: '3',
@@ -178,6 +188,15 @@ function TutorContent() {
     },
   ]
 
+  // Pausamos el renderizado de la interfaz gráfica hasta que el useEffect termine de arreglar la URL
+  if (!tabParam) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="h-6 w-6 animate-spin rounded-full border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
   return (
     <SidebarLayout role="tutor" menuItems={menuItems}>
       <div className="max-w-7xl">
@@ -193,7 +212,7 @@ function TutorContent() {
           </p>
         </div>
 
-        {/* TAB 1: ALERTAS IA (HU-06) */}
+        {/* TAB 1: ALERTAS IA */}
         {activeTab === 'alertas' && (
           <div className="mb-8 rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
             <div className="mb-6 flex items-center justify-between">
@@ -309,7 +328,7 @@ function TutorContent() {
           </div>
         )}
 
-        {/* TAB 3: SEGUIMIENTO ACADÉMICO / PERFIL INTEGRAL (HU-03) */}
+        {/* TAB 3: SEGUIMIENTO ACADÉMICO / PERFIL INTEGRAL */}
         {activeTab === 'seguimiento' && (
           <div className="grid gap-6 md:grid-cols-3">
             
@@ -426,28 +445,17 @@ function TutorContent() {
                     </div>
                   </div>
 
-                  {/* Historial de Notas y Seguimiento Técnico */}
-                  <div className="p-4 rounded-xl border border-primary/10 bg-background/20">
-                    <h4 className="text-xs font-semibold uppercase text-foreground/50 mb-3 flex items-center gap-1.5">
-                      <FileText className="h-3.5 w-3.5" /> Historial de Intervenciones y Notas del Tutor
-                    </h4>
-                    <div className="space-y-3">
-                      {selectedStudent.historial.length === 0 ? (
-                        <p className="text-xs text-foreground/40 italic py-2">No se registran bitácoras ni seguimientos previos para este ciclo.</p>
-                      ) : selectedStudent.historial.map((item: any, i: number) => (
-                        <div key={i} className="border-l-2 border-primary/40 pl-3 py-1 bg-primary/5 rounded-r-md pr-2">
-                          <p className="text-[10px] text-foreground/40 font-medium">{item.fecha} — Docente: {item.tutor}</p>
-                          <p className="text-xs text-foreground/80 mt-0.5">{item.observacion}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  {/* COMPONENTE DE LECTURA DEL HISTORIAL DESDE SUPABASE */}
+                  <HistorialIntervenciones 
+                    estudianteId={selectedStudent.id} 
+                    refreshKey={refreshHistorial} 
+                  />
 
-                  {/* AQUÍ INYECTAMOS TU HU-10 */}
+                  {/* COMPONENTE DE REGISTRO DE NUEVA INTERVENCIÓN */}
                   <FormularioIntervencion 
                     estudianteId={selectedStudent.id} 
                     nombreEstudiante={selectedStudent.nombre}
-                    onGuardado={() => console.log('Acción guardada. Luego conectaremos la HU-11 aquí.')}
+                    onGuardado={() => setRefreshHistorial(prev => prev + 1)} 
                   />
 
                 </div>

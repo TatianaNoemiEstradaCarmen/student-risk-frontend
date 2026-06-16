@@ -4,6 +4,15 @@ import { useState } from 'react'
 import { supabase } from '@/src/lib/supabase'
 import { Send, AlertCircle, CheckCircle } from 'lucide-react'
 
+// Función para obtener la fecha local exacta (YYYY-MM-DD) sin desfase de UTC
+const getFechaHoyLocal = () => {
+  const hoy = new Date();
+  const año = hoy.getFullYear();
+  const mes = String(hoy.getMonth() + 1).padStart(2, '0');
+  const dia = String(hoy.getDate()).padStart(2, '0');
+  return `${año}-${mes}-${dia}`;
+};
+
 export default function FormularioIntervencion({ 
   estudianteId, 
   nombreEstudiante, 
@@ -13,9 +22,8 @@ export default function FormularioIntervencion({
   nombreEstudiante: string;
   onGuardado: () => void;
 }) {
-  // Inicializamos la fecha con el día de hoy por comodidad
-  const hoy = new Date().toISOString().split('T')[0]
-  const [fecha, setFecha] = useState(hoy)
+  // Inicializamos usando nuestra nueva función local
+  const [fecha, setFecha] = useState(getFechaHoyLocal())
   const [tipoAccion, setTipoAccion] = useState('')
   const [observacion, setObservacion] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -27,7 +35,7 @@ export default function FormularioIntervencion({
     setError('')
     setExito(false)
 
-    // PRUEBA DE ACEPTACIÓN 2: Validar que no se permita guardar vacío (ahora incluye la fecha)
+    // PRUEBA DE ACEPTACIÓN 2: Validar que no se permita guardar vacío
     if (!fecha || !tipoAccion || !observacion.trim()) {
       setError('Debes ingresar la fecha, el tipo de acción y escribir una observación.')
       return
@@ -42,7 +50,7 @@ export default function FormularioIntervencion({
         .insert([
           {
             estudiante_id: estudianteId,
-            fecha: fecha, // <-- Ahora enviamos la fecha elegida por el tutor
+            fecha: fecha, // Guardamos la fecha con la zona horaria correcta
             tipo_accion: tipoAccion,
             observacion: observacion.trim(),
             responsable: 'Tutor Académico' 
@@ -54,7 +62,8 @@ export default function FormularioIntervencion({
       setExito(true)
       setTipoAccion('')
       setObservacion('')
-      setFecha(hoy) // Reseteamos a la fecha actual
+      // Reseteamos el formulario a la fecha de hoy local
+      setFecha(getFechaHoyLocal()) 
       
       setTimeout(() => {
         setExito(false)
@@ -78,7 +87,7 @@ export default function FormularioIntervencion({
       <form onSubmit={handleSubmit} className="space-y-4">
         
         <div className="grid grid-cols-2 gap-4">
-          {/* NUEVO: Selector de Fecha */}
+          {/* Selector de Fecha */}
           <div>
             <label className="mb-1 block text-xs text-foreground/70">Fecha de la acción</label>
             <input
