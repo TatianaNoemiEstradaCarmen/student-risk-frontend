@@ -15,6 +15,8 @@ import {
 } from 'lucide-react'
 
 import { getScholarships } from '@/src/services/scholarshipService'
+// ✅ CAMBIO 1: Importar servicio de trámites
+import { getTramites } from '@/src/services/tramitesService'
 import { getStudents } from '@/src/data/students'
 import { SidebarLayout } from '@/components/dashboard/sidebar-layout'
 import { calculateRisk } from '@/src/services/riskEngine'
@@ -47,7 +49,8 @@ interface TutoringRequest {
   estado: string
 }
 
-type StudentTab = 'solicitudes' | 'recomendaciones' | 'becas' | 'alertas'
+// ✅ CAMBIO 2: Agregar 'tramites' al tipo de tabs
+type StudentTab = 'solicitudes' | 'recomendaciones' | 'becas' | 'tramites' | 'alertas'
 
 const selectClass = 'w-full rounded-md border border-primary/20 bg-background/50 px-3 py-2 text-sm text-foreground'
 
@@ -66,6 +69,8 @@ export default function EstudiantePage() {
   const [successMessage, setSuccessMessage] = useState('')
   const [alerts, setAlerts] = useState<any[]>([])
   const [scholarships, setScholarships] = useState<Scholarship[]>([])
+  // ✅ CAMBIO 3: Agregar estado para trámites
+  const [tramites, setTramites] = useState<any[]>([])
 
   const myRisk = calculateRisk({
     gpa: 11,
@@ -75,7 +80,6 @@ export default function EstudiantePage() {
     creditosTotales: 200,
   })
 
-  // ✅ Carga solicitudes desde Supabase
   useEffect(() => {
     const loadRequests = async () => {
       const { data, error } = await supabase
@@ -139,6 +143,15 @@ export default function EstudiantePage() {
     loadScholarships()
   }, [])
 
+  // ✅ CAMBIO 4: useEffect para cargar trámites
+  useEffect(() => {
+    const loadTramites = async () => {
+      const data = await getTramites()
+      setTramites(data || [])
+    }
+    loadTramites()
+  }, [])
+
   useEffect(() => {
     const syncTabFromUrl = () => {
       const params = new URLSearchParams(window.location.search)
@@ -147,6 +160,7 @@ export default function EstudiantePage() {
         currentTab === 'solicitudes' ||
         currentTab === 'recomendaciones' ||
         currentTab === 'becas' ||
+        currentTab === 'tramites' ||
         currentTab === 'alertas'
       ) {
         setTab(currentTab)
@@ -210,7 +224,6 @@ export default function EstudiantePage() {
       return
     }
 
-    // ✅ Recarga las solicitudes desde Supabase después de insertar
     const { data } = await supabase
       .from('solicitudes_tutoria')
       .select('*')
@@ -244,10 +257,12 @@ export default function EstudiantePage() {
     setTimeout(() => setSuccessMessage(''), 3000)
   }
 
+  // ✅ CAMBIO 5: Agregar trámites al menú lateral
   const menuItems = [
     { label: 'Solicitar Tutoría', href: '/dashboard/estudiante?tab=solicitudes', icon: <MessageSquare className="h-5 w-5" /> },
     { label: 'Recomendaciones de Apoyo', href: '/dashboard/estudiante?tab=recomendaciones', icon: <BookOpen className="h-5 w-5" /> },
     { label: 'Becas Disponibles', href: '/dashboard/estudiante?tab=becas', icon: <Gift className="h-5 w-5" /> },
+    { label: 'Trámites de Apoyo', href: '/dashboard/estudiante?tab=tramites', icon: <BookOpen className="h-5 w-5" /> },
     { label: 'Mis Alertas Académicas', href: '/dashboard/estudiante?tab=alertas', icon: <AlertCircle className="h-5 w-5" /> },
   ]
 
@@ -268,11 +283,13 @@ export default function EstudiantePage() {
           </div>
         </div>
 
+        {/* ✅ CAMBIO 6: Agregar tab de trámites en la barra superior */}
         <div className="mb-6 flex flex-wrap gap-2 border-b border-primary/20">
           {[
             { id: 'solicitudes', label: 'Solicitar Tutoría' },
             { id: 'recomendaciones', label: 'Recomendaciones de Apoyo' },
             { id: 'becas', label: 'Becas Disponibles' },
+            { id: 'tramites', label: 'Trámites de Apoyo' },
             { id: 'alertas', label: 'Mis Alertas' },
           ].map(tabItem => (
             <button
@@ -447,6 +464,57 @@ export default function EstudiantePage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* ✅ CAMBIO 7: Vista de trámites */}
+        {tab === 'tramites' && (
+          <div className="space-y-6">
+            {tramites.length === 0 ? (
+              <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl text-center">
+                <BookOpen className="h-12 w-12 text-foreground/20 mx-auto mb-3" />
+                <p className="text-foreground/50 text-sm">No hay trámites disponibles.</p>
+              </div>
+            ) : (
+              tramites.map((tramite) => (
+                <div
+                  key={tramite.id}
+                  className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-bold text-foreground">
+                      {tramite.nombre_tramite}
+                    </h3>
+                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs">
+                      {tramite.codigo_tramite}
+                    </span>
+                  </div>
+
+                  <p className="text-foreground/70 mb-4">
+                    {tramite.descripcion}
+                  </p>
+
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <p className="font-semibold">Requisitos</p>
+                      <p className="text-sm text-foreground/70">{tramite.requisitos}</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">Área Responsable</p>
+                      <p className="text-sm text-foreground/70">{tramite.area_responsable}</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">Canal de Atención</p>
+                      <p className="text-sm text-foreground/70">{tramite.canal_atencion}</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">Prioridad</p>
+                      <p className="text-sm text-foreground/70">{tramite.prioridad}</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         )}
 
