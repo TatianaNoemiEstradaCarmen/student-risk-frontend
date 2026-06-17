@@ -14,10 +14,11 @@ import {
   CheckCircle,
   Pencil,
   Trash2,
+  ShieldCheck,
+  ShieldAlert,
+  ShieldX,
 } from 'lucide-react'
-// Fuente unica de datos: admin y tutor consumen la misma fuente.
-// Ver src/data/students.js -> src/api/studentsApi.js
-import { getStudents } from '@/src/data/students'
+import { getStudents, refreshStudents } from '@/src/data/students'
 import { getScholarships } from '@/src/services/scholarshipService'
 import { calculateRisk } from '@/src/services/riskEngine'
 import { SidebarLayout } from '@/components/dashboard/sidebar-layout'
@@ -25,6 +26,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import ImportStudentsPanel from '@/components/admin/ImportStudentsPanel'
+import { RiskCard } from '@/components/dashboard/risk-card'
+import { RiskFactorsBadge } from '@/components/dashboard/risk-factors-badge'
+import type { RiskFactor } from '@/components/dashboard/risk-factors-badge'
 
 import {
   Select,
@@ -91,70 +95,18 @@ export default function AdministradorPage() {
     motivaciones: '',
   })
 
-  // ─── Cargar datos desde localStorage o API ───────────────────────────────
-
+    // ─── Cargar datos desde Supabase ─────────────────────────────────────────
   useEffect(() => {
-    // HU-07: la fuente unica de datos es src/data/students.js (que envuelve
-    // src/api/studentsApi.js). Tanto admin como tutor consumen exactamente
-    // los mismos registros, riesgo, score, factores y explicacion.
     const loadStudents = async () => {
-      const saved = localStorage.getItem('students')
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        const needsRecalc = parsed.length > 0 && parsed[0].riskScore === undefined
-        if (needsRecalc) {
-          const recalculated = parsed.map((s: any) => {
-            const assessment = calculateRisk({
-              gpa: parseFloat(s.gpa ?? s.nota) || 0,
-              attendance: parseFloat(s.attendance ?? s.asistencia) || 0,
-              cursosDesaprobados: parseInt(s.cursosDesaprobados ?? s.desaprobados) || 0,
-              creditosAprobados: s.creditosAprobados || 0,
-              creditosTotales: s.creditosTotales || 200,
-            })
-            return { ...s, ...assessment }
-          })
-          setStudents(recalculated)
-          localStorage.setItem('students', JSON.stringify(recalculated))
-        } else {
-          setStudents(parsed)
-        }
-      } else {
+      try {
         const fetched = await getStudents()
         setStudents(fetched)
-        localStorage.setItem('students', JSON.stringify(fetched))
+      } catch (error) {
+        console.error('Error cargando estudiantes desde Supabase:', error)
+        setStudents([])
       }
     }
     loadStudents()
-  }, [])
-
-  useEffect(() => {
-    const loadScholarships = async () => {
-      const saved = localStorage.getItem('scholarships')
-  
-      if (saved) {
-        setScholarships(JSON.parse(saved))
-      } else {
-        const data = await getScholarships()
-        setScholarships(data || [])
-      }
-    }
-  
-    loadScholarships()
-  }, [])
-
-  useEffect(() => {
-    const saved = localStorage.getItem('findings')
-    if (saved) setFindings(JSON.parse(saved))
-  }, [])
-
-  useEffect(() => {
-    const saved = localStorage.getItem('academicRecords')
-    if (saved) setAcademicRecords(JSON.parse(saved))
-  }, [])
-
-  useEffect(() => {
-    const saved = localStorage.getItem('userRoles')
-    if (saved) setUserRoles(JSON.parse(saved))
   }, [])
 
   // ─── Estudiantes ─────────────────────────────────────────────────────────
@@ -192,33 +144,56 @@ export default function AdministradorPage() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleAddStudent = (e: React.FormEvent) => {
+  const handleAddStudent = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validateForm()) return
 
-    // Calcular riesgo al agregar estudiante (HU-05)
-    const defaultRisk = calculateRisk({
-      gpa: 0,
-      attendance: 0,
-      cursosDesaprobados: 0,
-    })
+    try {
+      // Insertar en Supabase
+      const supabase = (await import('@/src/lib/supabase')).supabase
+      const { data, error } = await supabase
+        .from('estudiantes')
+        .insert({
+          nombre: formData.nombre.trim(),
+          codigo: formData.codigo.trim(),
+          correo: formData.correo.trim(),
+          ciclo: formData.ciclo,
+          carrera: formData.carrera,
+          estado_matricula: 'Activo',
+          fecha_registro: new Date().toISOString().split('T')[0],
+        })
+        .select()
+        .single()
 
-    const newStudent = {
-      id: students.length + 1,
-      ...formData,
-      risk: defaultRisk.risk,
-      riskScore: defaultRisk.riskScore,
-      riskComponents: defaultRisk.components,
-      recommendation: defaultRisk.recommendation,
+      if (error) {
+        console.error('Error al insertar estudiante:', error.message)
+        setErrors({ general: `Error al guardar: ${error.message}` })
+        return
+      }
+
+      // También insertar un registro académico vacío para que el join funcione
+      if (data) {
+        await supabase.from('registro_academico').insert({
+          estudiante_id: data.id,
+          nota: 0,
+          asistencia: 0,
+          cursos_desaprobados: 0,
+          fecha_registro: new Date().toISOString().split('T')[0],
+        })
+      }
+
+      // Recargar desde Supabase para tener datos frescos con riesgo calculado
+      const refreshed = await refreshStudents()
+      setStudents(refreshed)
+
+      setFormData({ nombre: '', codigo: '', correo: '', ciclo: '', carrera: '' })
+      setErrors({})
+      setSuccessMessage('Estudiante agregado exitosamente')
+      setTimeout(() => setSuccessMessage(''), 3000)
+    } catch (err: any) {
+      console.error('Error agregando estudiante:', err)
+      setErrors({ general: 'Error inesperado al guardar el estudiante' })
     }
-
-    const updated = [...students, newStudent]
-    setStudents(updated)
-    localStorage.setItem('students', JSON.stringify(updated))
-    setFormData({ nombre: '', codigo: '', correo: '', ciclo: '', carrera: '' })
-    setErrors({})
-    setSuccessMessage('Estudiante agregado exitosamente')
-    setTimeout(() => setSuccessMessage(''), 3000)
   }
 
   const filteredStudents = students.filter(s =>
@@ -295,53 +270,87 @@ export default function AdministradorPage() {
     setAcademicForm(prev => ({ ...prev, [name]: value }))
   }
 
-  const handleAddAcademicRecord = (e: React.FormEvent) => {
+  const handleAddAcademicRecord = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    let updatedRecords
-    if (editingAcademicId !== null) {
-      updatedRecords = academicRecords.map(r =>
-        r.id === editingAcademicId ? { ...r, ...academicForm } : r
-      )
-      setAcademicRecords(updatedRecords)
-      localStorage.setItem('academicRecords', JSON.stringify(updatedRecords))
-      setEditingAcademicId(null)
-    } else {
-      const newRecord = { id: Date.now(), ...academicForm }
-      updatedRecords = [...academicRecords, newRecord]
-      setAcademicRecords(updatedRecords)
-      localStorage.setItem('academicRecords', JSON.stringify(updatedRecords))
-    }
-
-    setAcademicForm({ estudiante: '', nota: '', asistencia: '', desaprobados: '' })
-
-    // ─── Recalcular riesgo del estudiante usando el motor centralizado (HU-05) ───
-    if (academicForm.estudiante) {
-      const gpa = parseFloat(academicForm.nota) || 0
-      const attendance = parseFloat(academicForm.asistencia) || 0
+    try {
+      const supabase = (await import('@/src/lib/supabase')).supabase
+      const nota = parseFloat(academicForm.nota) || 0
+      const asistencia = parseFloat(academicForm.asistencia) || 0
       const cursosDesaprobados = parseInt(academicForm.desaprobados) || 0
 
+      // Buscar el estudiante por nombre para obtener su ID
+      const { data: estudianteData, error: estudianteError } = await supabase
+        .from('estudiantes')
+        .select('id, nombre')
+        .ilike('nombre', academicForm.estudiante.trim())
+        .single()
+
+      if (estudianteError || !estudianteData) {
+        console.error('Estudiante no encontrado:', academicForm.estudiante)
+        // Fallback: guardar en memoria local para no perder funcionalidad
+        const newRecord = { id: Date.now(), ...academicForm }
+        const updatedRecords = [...academicRecords, newRecord]
+        setAcademicRecords(updatedRecords)
+        localStorage.setItem('academicRecords', JSON.stringify(updatedRecords))
+        setAcademicForm({ estudiante: '', nota: '', asistencia: '', desaprobados: '' })
+        return
+      }
+
+      if (editingAcademicId !== null) {
+        // Actualizar registro existente
+        await supabase
+          .from('registro_academico')
+          .update({
+            nota,
+            asistencia,
+            cursos_desaprobados,
+            fecha_registro: new Date().toISOString().split('T')[0],
+          })
+          .eq('id', editingAcademicId)
+        setEditingAcademicId(null)
+      } else {
+        // Insertar nuevo registro académico
+        await supabase
+          .from('registro_academico')
+          .insert({
+            estudiante_id: estudianteData.id,
+            nota,
+            asistencia,
+            cursos_desaprobados,
+            fecha_registro: new Date().toISOString().split('T')[0],
+          })
+      }
+
+      // Actualizar el puntaje de riesgo en la tabla estudiantes
       const assessment = calculateRisk({
-        gpa,
-        attendance,
+        gpa: nota,
+        attendance: asistencia,
         cursosDesaprobados,
       })
 
-      const updatedStudents = students.map(s => {
-        if (s.nombre?.toLowerCase() === academicForm.estudiante.toLowerCase()) {
-          return {
-            ...s,
-            risk: assessment.risk,
-            riskScore: assessment.riskScore,
-            riskComponents: assessment.components,
-            recommendation: assessment.recommendation,
-          }
-        }
-        return s
-      })
+      await supabase
+        .from('estudiantes')
+        .update({
+          riesgo: assessment.risk,
+          puntaje_riesgo: assessment.riskScore,
+          recomendacion: assessment.recommendation,
+        })
+        .eq('id', estudianteData.id)
 
-      setStudents(updatedStudents)
-      localStorage.setItem('students', JSON.stringify(updatedStudents))
+      // Recargar datos frescos
+      const refreshed = await refreshStudents()
+      setStudents(refreshed)
+
+      // También actualizar registros en memoria para la pestaña académico
+      const newRecord = { id: Date.now(), ...academicForm }
+      const updatedRecords = [...academicRecords, newRecord]
+      setAcademicRecords(updatedRecords)
+      localStorage.setItem('academicRecords', JSON.stringify(updatedRecords))
+
+      setAcademicForm({ estudiante: '', nota: '', asistencia: '', desaprobados: '' })
+    } catch (err: any) {
+      console.error('Error guardando registro académico:', err)
     }
   }
 
@@ -534,93 +543,26 @@ export default function AdministradorPage() {
                   <tbody>
                     {filteredStudents.map(student => (
                       <tr key={student.id} className="border-b border-primary/10 hover:bg-primary/5 transition-colors">
-                        <td className="px-4 py-3 text-foreground">{student.nombre}</td>
+                        <td className="px-4 py-3 text-foreground">{student.nombre || student.name}</td>
                         <td className="px-4 py-3 text-foreground/70">{student.codigo}</td>
                         <td className="px-4 py-3 text-foreground/70">{student.correo}</td>
                         <td className="px-4 py-3 text-foreground/70">{student.ciclo}</td>
                         <td className="px-4 py-3 text-foreground/70">{student.carrera}</td>
                         <td className="px-4 py-3">
-                          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                            student.risk === 'HIGH' ? 'bg-red-500/20 text-red-400'
-                            : student.risk === 'MEDIUM' ? 'bg-yellow-500/20 text-yellow-400'
-                            : 'bg-green-500/20 text-green-400'
-                          }`}>
-                            {student.risk || 'LOW'}
-                          </span>
+                          <RiskCard
+                            risk={student.risk || 'LOW'}
+                            riskScore={student.riskScore || 0}
+                            components={student.riskComponents}
+                            factors={student.riskFactors || []}
+                            explanation={student.riskExplanation}
+                            recommendation={student.recommendation}
+                            compact
+                          />
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex flex-col gap-1 min-w-[120px]">
-                            {student.riskScore != null ? (
-                              <>
-                                <span className={`font-medium text-xs ${
-                                  student.riskScore < 40 ? 'text-red-400'
-                                  : student.riskScore < 65 ? 'text-yellow-400'
-                                  : 'text-green-400'
-                                }`}>
-                                  Score: {student.riskScore.toFixed(1)}
-                                </span>
-                                {/* Barras de desglose de componentes (HU-05) */}
-                                {student.riskComponents && (
-                                  <div className="grid grid-cols-2 gap-x-2 gap-y-1 mt-1">
-                                    {[
-                                      { label: 'Notas', score: student.riskComponents.gpaScore },
-                                      { label: 'Asistencia', score: student.riskComponents.attendanceScore },
-                                      { label: 'Desaprobados', score: student.riskComponents.failedCoursesScore },
-                                      { label: 'Progreso', score: student.riskComponents.progressScore },
-                                    ].map((comp) => (
-                                      <div key={comp.label} className="flex items-center gap-1">
-                                        <span className="text-[9px] text-foreground/50 w-16 truncate">{comp.label}</span>
-                                        <div className="flex-1 h-1.5 rounded-full bg-primary/10 overflow-hidden">
-                                          <div
-                                            className="h-full rounded-full bg-primary/60 transition-all"
-                                            style={{ width: `${comp.score}%` }}
-                                          />
-                                        </div>
-                                        <span className="text-[9px] text-foreground/50 w-4 text-right">{comp.score.toFixed(0)}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              <span className="text-foreground/40">—</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-col gap-1 max-w-[240px]">
-                            {student.riskFactors && student.riskFactors.length > 0 ? (
-                              <>
-                                <div className="flex flex-wrap gap-1">
-                                  {student.riskFactors.map((f: any) => (
-                                    <span
-                                      key={f.key}
-                                      title={f.message}
-                                      className={`cursor-help rounded-full border px-2 py-0.5 text-[10px] font-medium ${
-                                        f.severity === 'high'
-                                          ? 'bg-red-500/20 text-red-300 border-red-500/30'
-                                          : f.severity === 'medium'
-                                            ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30'
-                                            : 'bg-primary/20 text-primary border-primary/30'
-                                      }`}
-                                    >
-                                      {f.label}
-                                    </span>
-                                  ))}
-                                </div>
-                                {student.riskExplanation && (
-                                  <p className="text-[10px] leading-snug text-foreground/60">
-                                    {student.riskExplanation}
-                                  </p>
-                                )}
-                              </>
-                            ) : (
-                              <span className="text-[10px] text-foreground/40">Sin factores críticos</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <Button variant="ghost" size="sm" className="text-secondary hover:bg-secondary/10">Editar</Button>
+                          <Button variant="ghost" size="sm" className="text-secondary hover:bg-secondary/10">
+                            <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
+                          </Button>
                         </td>
                       </tr>
                     ))}
