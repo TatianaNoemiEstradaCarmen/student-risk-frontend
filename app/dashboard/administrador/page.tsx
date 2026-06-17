@@ -29,6 +29,7 @@ import ImportStudentsPanel from '@/components/admin/ImportStudentsPanel'
 import { RiskCard } from '@/components/dashboard/risk-card'
 import { RiskFactorsBadge } from '@/components/dashboard/risk-factors-badge'
 import type { RiskFactor } from '@/components/dashboard/risk-factors-badge'
+import { supabase } from '@/src/lib/supabase'
 
 import {
   Select,
@@ -95,7 +96,9 @@ export default function AdministradorPage() {
     motivaciones: '',
   })
 
-    // ─── Cargar datos desde Supabase ─────────────────────────────────────────
+  const [totalAlertas, setTotalAlertas] = useState(0)
+
+  // ─── Cargar datos desde Supabase ─────────────────────────────────────────
   useEffect(() => {
     const loadStudents = async () => {
       try {
@@ -109,7 +112,7 @@ export default function AdministradorPage() {
     loadStudents()
   }, [])
 
-    useEffect(() => {
+  useEffect(() => {
     const loadScholarships = async () => {
       try {
         const data = await getScholarships()
@@ -120,6 +123,22 @@ export default function AdministradorPage() {
       }
     }
     loadScholarships()
+  }, [])
+
+  // ✅ FIX 1: supabase ahora se importa dinámicamente dentro del useEffect
+  useEffect(() => {
+    const loadAlertas = async () => {
+      try {
+        const { supabase } = await import('@/src/lib/supabase')
+        const { count } = await supabase
+          .from('alertas_academicas')
+          .select('*', { count: 'exact', head: true })
+        setTotalAlertas(count || 0)
+      } catch (error) {
+        console.error('Error cargando alertas:', error)
+      }
+    }
+    loadAlertas()
   }, [])
 
   // ─── Estudiantes ─────────────────────────────────────────────────────────
@@ -137,11 +156,7 @@ export default function AdministradorPage() {
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const { name, value } = e.target
-
-    setScholarshipForm(prev => ({
-      ...prev,
-      [name]: value,
-    }))
+    setScholarshipForm(prev => ({ ...prev, [name]: value }))
   }
 
   const validateForm = () => {
@@ -153,7 +168,6 @@ export default function AdministradorPage() {
     if (!formData.ciclo) newErrors.ciclo = 'El ciclo es requerido'
     if (!formData.carrera) newErrors.carrera = 'La carrera es requerida'
     setErrors(newErrors)
-
     return Object.keys(newErrors).length === 0
   }
 
@@ -162,7 +176,6 @@ export default function AdministradorPage() {
     if (!validateForm()) return
 
     try {
-      // Insertar en Supabase
       const supabase = (await import('@/src/lib/supabase')).supabase
       const { data, error } = await supabase
         .from('estudiantes')
@@ -184,7 +197,6 @@ export default function AdministradorPage() {
         return
       }
 
-      // También insertar un registro académico vacío para que el join funcione
       if (data) {
         await supabase.from('registro_academico').insert({
           estudiante_id: data.id,
@@ -195,7 +207,6 @@ export default function AdministradorPage() {
         })
       }
 
-      // Recargar desde Supabase para tener datos frescos con riesgo calculado
       const refreshed = await refreshStudents()
       setStudents(refreshed)
 
@@ -215,26 +226,69 @@ export default function AdministradorPage() {
     s.correo?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  const totalEstudiantes = students.length
+
+  const riesgoAlto = students.filter(s => s.riesgo === 'ALTO').length
+  const riesgoMedio = students.filter(s => s.riesgo === 'MEDIO').length
+  const riesgoBajo = students.filter(s => s.riesgo === 'BAJO').length
+
+  const asistenciaPromedio =
+    students.length > 0
+      ? (
+          students.reduce((acc, s) => acc + (s.attendance || 0), 0) /
+          students.length
+        ).toFixed(1)
+      : '0'
+
+  const cursosDesaprobados = students.reduce(
+    (acc, s) => acc + (s.cursosDesaprobados || 0),
+    0
+  )
+
   // ─── Becas ───────────────────────────────────────────────────────────────
 
-  const handleAddScholarship = (e: React.FormEvent) => {
+  // ✅ FIX 5: Las becas ahora se guardan en Supabase, no solo en localStorage
+  const handleAddScholarship = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (editingScholarshipId !== null) {
-      const updated = scholarships.map(s =>
-        s.id === editingScholarshipId ? { ...s, ...scholarshipForm } : s
-      )
-      setScholarships(updated)
-      localStorage.setItem('scholarships', JSON.stringify(updated))
-      setEditingScholarshipId(null)
-    } else {
-      const newScholarship = { id: scholarships.length + 1, ...scholarshipForm }
-      const updated = [...scholarships, newScholarship]
-      setScholarships(updated)
-      localStorage.setItem('scholarships', JSON.stringify(updated))
-    }
+    try {
+      const { supabase } = await import('@/src/lib/supabase')
 
-    setScholarshipForm({ nombre: '', monto: '', requisitos: '' })
+      if (editingScholarshipId !== null) {
+        const { error } = await supabase
+          .from('becas')
+          .update({
+            nombre: scholarshipForm.nombre,
+            monto: scholarshipForm.monto,
+            requisitos: scholarshipForm.requisitos,
+          })
+          .eq('id', editingScholarshipId)
+
+        if (error) {
+          console.error('Error actualizando beca:', error.message)
+          return
+        }
+        setEditingScholarshipId(null)
+      } else {
+        const { error } = await supabase.from('becas').insert({
+          nombre: scholarshipForm.nombre,
+          monto: scholarshipForm.monto,
+          requisitos: scholarshipForm.requisitos,
+        })
+
+        if (error) {
+          console.error('Error insertando beca:', error.message)
+          return
+        }
+      }
+
+      // Recargar becas desde Supabase
+      const { data } = await supabase.from('becas').select('*')
+      setScholarships(data || [])
+      setScholarshipForm({ nombre: '', monto: '', requisitos: '' })
+    } catch (err) {
+      console.error('Error guardando beca:', err)
+    }
   }
 
   const handleEditScholarship = (id: number) => {
@@ -248,10 +302,18 @@ export default function AdministradorPage() {
     setEditingScholarshipId(id)
   }
 
-  const handleDeleteScholarship = (id: number) => {
-    const updated = scholarships.filter(s => s.id !== id)
-    setScholarships(updated)
-    localStorage.setItem('scholarships', JSON.stringify(updated))
+  const handleDeleteScholarship = async (id: number) => {
+    try {
+      const { supabase } = await import('@/src/lib/supabase')
+      const { error } = await supabase.from('becas').delete().eq('id', id)
+      if (error) {
+        console.error('Error eliminando beca:', error.message)
+        return
+      }
+      setScholarships(prev => prev.filter(s => s.id !== id))
+    } catch (err) {
+      console.error('Error eliminando beca:', err)
+    }
   }
 
   // ─── Hallazgos ───────────────────────────────────────────────────────────
@@ -292,7 +354,6 @@ export default function AdministradorPage() {
       const asistencia = parseFloat(academicForm.asistencia) || 0
       const cursosDesaprobados = parseInt(academicForm.desaprobados) || 0
 
-      // Buscar el estudiante por nombre para obtener su ID
       const { data: estudianteData, error: estudianteError } = await supabase
         .from('estudiantes')
         .select('id, nombre')
@@ -313,29 +374,27 @@ export default function AdministradorPage() {
         await supabase
           .from('registro_academico')
           .update({
-            nota: nota,
-            asistencia: asistencia,
+            nota,
+            asistencia,
             cursos_desaprobados: cursosDesaprobados,
             fecha_registro: new Date().toISOString().split('T')[0],
           })
           .eq('id', editingAcademicId)
         setEditingAcademicId(null)
       } else {
-        await supabase
-          .from('registro_academico')
-          .insert({
-            estudiante_id: estudianteData.id,
-            nota: nota,
-            asistencia: asistencia,
-            cursos_desaprobados: cursosDesaprobados,
-            fecha_registro: new Date().toISOString().split('T')[0],
-          })
+        await supabase.from('registro_academico').insert({
+          estudiante_id: estudianteData.id,
+          nota,
+          asistencia,
+          cursos_desaprobados: cursosDesaprobados,
+          fecha_registro: new Date().toISOString().split('T')[0],
+        })
       }
 
       const assessment = calculateRisk({
         gpa: nota,
         attendance: asistencia,
-        cursosDesaprobados: cursosDesaprobados,
+        cursosDesaprobados,
       })
 
       await supabase
@@ -397,9 +456,8 @@ export default function AdministradorPage() {
     { label: 'Registro de Becas', href: '/dashboard/administrador?tab=becas', icon: <BookOpen className="h-5 w-5" /> },
     { label: 'Asignación de Roles', href: '/dashboard/administrador?tab=roles', icon: <UserCheck className="h-5 w-5" /> },
     { label: 'Oportunidades Laborales', href: '/dashboard/administrador/oportunidades', icon: <Briefcase className="h-5 w-5" /> },
-
     { label: 'Configuración', href: '/dashboard/administrador?tab=config', icon: <Settings className="h-5 w-5" /> },
-    { label: 'Importar Datos', href: '/dashboard/administrador?tab=importacion', icon: <Plus className="h-5 w-5" />},
+    { label: 'Importar Datos', href: '/dashboard/administrador?tab=importacion', icon: <Plus className="h-5 w-5" /> },
   ]
 
   const currentRole = userRoles[0]?.role || 'estudiante'
@@ -411,12 +469,10 @@ export default function AdministradorPage() {
       <div className="max-w-7xl">
 
         {/* Header */}
-
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground">
             Panel de Administración
           </h1>
-
           <p className="text-foreground/70">
             Gestiona estudiantes, becas y asignación de roles
           </p>
@@ -455,17 +511,11 @@ export default function AdministradorPage() {
               {successMessage && (
                 <div className="mb-6 flex items-center gap-3 rounded-lg border border-green-500/20 bg-green-500/10 p-4">
                   <CheckCircle className="h-5 w-5 text-green-500" />
-
-                  <p className="text-sm text-green-500">
-                    {successMessage}
-                  </p>
+                  <p className="text-sm text-green-500">{successMessage}</p>
                 </div>
               )}
 
-              <form
-                onSubmit={handleAddStudent}
-                className="space-y-5"
-              >
+              <form onSubmit={handleAddStudent} className="space-y-5">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="nombre">Nombre Completo</Label>
@@ -516,13 +566,9 @@ export default function AdministradorPage() {
 
             <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
               <div className="mb-6 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-foreground">
-                  Estudiantes Registrados
-                </h2>
-
+                <h2 className="text-xl font-bold text-foreground">Estudiantes Registrados</h2>
                 <div className="relative w-64">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/50" />
-
                   <Input
                     placeholder="Buscar estudiante..."
                     value={searchQuery}
@@ -545,7 +591,6 @@ export default function AdministradorPage() {
                       <th className="px-4 py-3 text-left font-semibold text-foreground">Acciones</th>
                     </tr>
                   </thead>
-
                   <tbody>
                     {filteredStudents.map(student => (
                       <tr key={student.id} className="border-b border-primary/10 hover:bg-primary/5 transition-colors">
@@ -567,14 +612,13 @@ export default function AdministradorPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex flex-col gap-1.5">
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               className="text-secondary hover:bg-secondary/10"
                               onClick={async () => {
                                 try {
                                   const supabase = (await import('@/src/lib/supabase')).supabase
-                                  // Forzar actualización del puntaje_riesgo para disparar el trigger
                                   const { data: regData } = await supabase
                                     .from('registro_academico')
                                     .select('nota, asistencia, cursos_desaprobados')
@@ -582,14 +626,14 @@ export default function AdministradorPage() {
                                     .order('fecha_registro', { ascending: false })
                                     .limit(1)
                                     .single()
-                                  
+
                                   if (regData) {
                                     const assessment = calculateRisk({
                                       gpa: regData.nota || 0,
                                       attendance: regData.asistencia || 0,
                                       cursosDesaprobados: regData.cursos_desaprobados || 0,
                                     })
-                                    
+
                                     await supabase
                                       .from('estudiantes')
                                       .update({
@@ -598,7 +642,7 @@ export default function AdministradorPage() {
                                         recomendacion: assessment.recommendation,
                                       })
                                       .eq('id', student.id)
-                                    
+
                                     const refreshed = await refreshStudents()
                                     setStudents(refreshed)
                                   }
@@ -821,14 +865,150 @@ export default function AdministradorPage() {
 
         {/* ── REPORTES ── */}
         {tab === 'reportes' && (
-          <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
-            <h2 className="mb-6 text-xl font-bold text-foreground">Reportes Académicos</h2>
-            <p className="text-foreground/70">Módulo de reportes (en desarrollo)</p>
+          <div className="space-y-6">
 
-            {currentRole === 'administrador' && <p className="mt-4 text-green-500">Opciones de administrador visibles</p>}
-            {currentRole === 'tutor' && <p className="mt-4 text-blue-500">Panel de tutor visible</p>}
-            {currentRole === 'coordinador' && <p className="mt-4 text-yellow-500">Panel de coordinador visible</p>}
-            {currentRole === 'estudiante' && <p className="mt-4 text-purple-500">Vista de estudiante visible</p>}
+            <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
+              <h2 className="mb-2 text-2xl font-bold text-foreground">
+                Dashboard Ejecutivo
+              </h2>
+              <p className="text-foreground/70">
+                Monitoreo académico y análisis de riesgo estudiantil
+              </p>
+            </div>
+
+            {/* TARJETAS HU-25 */}
+            <div className="grid gap-4 md:grid-cols-4">
+              <div className="rounded-xl border border-primary/20 bg-card/40 p-6">
+                <p className="text-sm text-foreground/60">Total Estudiantes</p>
+                <p className="mt-2 text-3xl font-bold">{totalEstudiantes}</p>
+              </div>
+
+              <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-6">
+                <p className="text-sm text-red-400">Riesgo Alto</p>
+                <p className="mt-2 text-3xl font-bold text-red-400">{riesgoAlto}</p>
+              </div>
+
+              <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-6">
+                <p className="text-sm text-yellow-400">Riesgo Medio</p>
+                <p className="mt-2 text-3xl font-bold text-yellow-400">{riesgoMedio}</p>
+              </div>
+
+              <div className="rounded-xl border border-green-500/20 bg-green-500/10 p-6">
+                <p className="text-sm text-green-400">Riesgo Bajo</p>
+                <p className="mt-2 text-3xl font-bold text-green-400">{riesgoBajo}</p>
+              </div>
+            </div>
+
+            {/* ✅ FIX 2 y 3: Indicadores ahora muestran los valores reales calculados */}
+            {/* DISTRIBUCIÓN DE RIESGO */}
+            <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
+              <h3 className="mb-6 text-xl font-bold">Distribución de Riesgo</h3>
+              <div className="space-y-4">
+
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>Riesgo Alto</span>
+                    <span>{totalEstudiantes > 0 ? ((riesgoAlto / totalEstudiantes) * 100).toFixed(1) : 0}% ({riesgoAlto})</span>
+                  </div>
+                  <div className="h-3 rounded-full bg-gray-200 dark:bg-gray-700">
+                    <div
+                      className="h-3 rounded-full bg-red-500 transition-all duration-500"
+                      style={{ width: totalEstudiantes > 0 ? `${(riesgoAlto / totalEstudiantes) * 100}%` : '0%' }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>Riesgo Medio</span>
+                    <span>{totalEstudiantes > 0 ? ((riesgoMedio / totalEstudiantes) * 100).toFixed(1) : 0}% ({riesgoMedio})</span>
+                  </div>
+                  <div className="h-3 rounded-full bg-gray-200 dark:bg-gray-700">
+                    <div
+                      className="h-3 rounded-full bg-yellow-500 transition-all duration-500"
+                      style={{ width: totalEstudiantes > 0 ? `${(riesgoMedio / totalEstudiantes) * 100}%` : '0%' }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>Riesgo Bajo</span>
+                    <span>{totalEstudiantes > 0 ? ((riesgoBajo / totalEstudiantes) * 100).toFixed(1) : 0}% ({riesgoBajo})</span>
+                  </div>
+                  <div className="h-3 rounded-full bg-gray-200 dark:bg-gray-700">
+                    <div
+                      className="h-3 rounded-full bg-green-500 transition-all duration-500"
+                      style={{ width: totalEstudiantes > 0 ? `${(riesgoBajo / totalEstudiantes) * 100}%` : '0%' }}
+                    />
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
+              <h3 className="mb-6 text-xl font-bold">Indicadores Académicos</h3>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="rounded-xl border border-primary/20 p-6">
+                  <p className="text-sm text-foreground/60">Asistencia Promedio</p>
+                  <p className="mt-2 text-3xl font-bold">{asistenciaPromedio}%</p>
+                </div>
+
+                <div className="rounded-xl border border-primary/20 p-6">
+                  <p className="text-sm text-foreground/60">Cursos Desaprobados</p>
+                  <p className="mt-2 text-3xl font-bold">{cursosDesaprobados}</p>
+                </div>
+
+                <div className="rounded-xl border border-primary/20 p-6">
+                  <p className="text-sm text-foreground/60">Alertas Generadas</p>
+                  <p className="mt-2 text-3xl font-bold">{totalAlertas}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* ✅ FIX 4: Top estudiantes ahora filtra por riesgo ALTO y ordena por puntaje */}
+            <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
+              <h3 className="mb-6 text-xl font-bold">Estudiantes con Mayor Riesgo</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-primary/20">
+                      <th className="px-4 py-3 text-left">Código</th>
+                      <th className="px-4 py-3 text-left">Nombre</th>
+                      <th className="px-4 py-3 text-left">Carrera</th>
+                      <th className="px-4 py-3 text-left">Riesgo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {students
+                      .filter(s => s.riesgo === 'ALTO')
+                      .sort((a, b) => (b.puntaje_riesgo || 0) - (a.puntaje_riesgo || 0))
+                      .slice(0, 5)
+                      .map(student => (
+                        <tr key={student.id} className="border-b border-primary/10">
+                          <td className="px-4 py-3">{student.codigo}</td>
+                          <td className="px-4 py-3">{student.nombre}</td>
+                          <td className="px-4 py-3">{student.carrera}</td>
+                          <td className="px-4 py-3">
+                            <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-semibold text-red-400">
+                              {student.riesgo}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    {students.filter(s => s.riesgo === 'ALTO').length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-6 text-center text-foreground/50">
+                          No hay estudiantes con riesgo alto
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
           </div>
         )}
 
