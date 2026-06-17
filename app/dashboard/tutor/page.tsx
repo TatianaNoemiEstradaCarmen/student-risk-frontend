@@ -28,7 +28,7 @@ function TutorContent() {
 
   const [requests, setRequests] = useState<any[]>([])
   const [alerts, setAlerts] = useState<any[]>([])
-  const [filtroRiesgo, setFiltroRiesgo] = useState('TODOS')
+  const [filtroRiesgo, setFiltroRiesgo] = useState('ALTO')
   const [loadingAlerts, setLoadingAlerts] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
@@ -178,10 +178,9 @@ function TutorContent() {
                   onChange={(e) => setFiltroRiesgo(e.target.value)}
                   className="rounded-md border border-primary/20 bg-background px-3 py-1.5 text-sm text-foreground"
                 >
-                  <option value="TODOS">Todos los niveles</option>
-                  <option value="ALTO">Riesgo Alto</option>
-                  <option value="MEDIO">Riesgo Medio</option>
-                  <option value="BAJO">Riesgo Bajo</option>
+                  <option value="TODOS">Todas las alertas</option>
+                  <option value="ALTO"> Riesgo Alto</option>
+                  <option value="MEDIO"> Riesgo Medio</option>
                 </select>
                 <span className="text-sm text-foreground/70">{alerts.length} alertas</span>
               </div>
@@ -194,9 +193,9 @@ function TutorContent() {
             ) : alerts.length === 0 ? (
               <div className="text-center py-12">
                 <AlertTriangle className="h-12 w-12 text-foreground/20 mx-auto mb-3" />
-                <p className="text-foreground/50 text-sm">No hay alertas generadas todavía.</p>
+                <p className="text-foreground/50 text-sm">No hay alertas de riesgo medio o alto.</p>
                 <p className="text-foreground/30 text-xs mt-1">
-                  Ejecuta el SQL de generación de alertas en Supabase.
+                  Las alertas se generan automáticamente al actualizar datos académicos.
                 </p>
               </div>
             ) : (

@@ -534,8 +534,7 @@ export default function AdministradorPage() {
                       <th className="px-4 py-3 text-left font-semibold text-foreground">Correo</th>
                       <th className="px-4 py-3 text-left font-semibold text-foreground">Ciclo</th>
                       <th className="px-4 py-3 text-left font-semibold text-foreground">Carrera</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground">Riesgo IA</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground">Puntaje</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground">Evaluación de Riesgo</th>
                       <th className="px-4 py-3 text-left font-semibold text-foreground">Acciones</th>
                     </tr>
                   </thead>
@@ -560,9 +559,53 @@ export default function AdministradorPage() {
                           />
                         </td>
                         <td className="px-4 py-3">
-                          <Button variant="ghost" size="sm" className="text-secondary hover:bg-secondary/10">
-                            <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
-                          </Button>
+                          <div className="flex flex-col gap-1.5">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-secondary hover:bg-secondary/10"
+                              onClick={async () => {
+                                try {
+                                  const supabase = (await import('@/src/lib/supabase')).supabase
+                                  // Forzar actualización del puntaje_riesgo para disparar el trigger
+                                  const { data: regData } = await supabase
+                                    .from('registro_academico')
+                                    .select('nota, asistencia, cursos_desaprobados')
+                                    .eq('estudiante_id', student.id)
+                                    .order('fecha_registro', { ascending: false })
+                                    .limit(1)
+                                    .single()
+                                  
+                                  if (regData) {
+                                    const assessment = calculateRisk({
+                                      gpa: regData.nota || 0,
+                                      attendance: regData.asistencia || 0,
+                                      cursosDesaprobados: regData.cursos_desaprobados || 0,
+                                    })
+                                    
+                                    await supabase
+                                      .from('estudiantes')
+                                      .update({
+                                        riesgo: assessment.risk,
+                                        puntaje_riesgo: assessment.riskScore,
+                                        recomendacion: assessment.recommendation,
+                                      })
+                                      .eq('id', student.id)
+                                    
+                                    const refreshed = await refreshStudents()
+                                    setStudents(refreshed)
+                                  }
+                                } catch (err) {
+                                  console.error('Error recalculando riesgo:', err)
+                                }
+                              }}
+                            >
+                              <ShieldCheck className="h-3.5 w-3.5 mr-1" /> Recalcular
+                            </Button>
+                            <Button variant="ghost" size="sm" className="text-secondary hover:bg-secondary/10">
+                              <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}
