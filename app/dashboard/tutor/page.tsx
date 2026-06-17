@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import FormularioIntervencion from '@/components/tutor/FormularioIntervencion'
 import HistorialIntervenciones from '@/components/tutor/HistorialIntervenciones' 
+import SelectorEstadoAlerta from '@/components/tutor/SelectorEstadoAlerta' // 1. Componente importado
 
 import {
   AlertTriangle,
@@ -113,8 +114,9 @@ function TutorContent() {
           mensaje,
           recomendacion,
           nivel_riesgo,
+          estado,
           estudiantes (id, nombre, carrera)
-        `)
+        `) // 2. Campo 'estado' agregado a la consulta
 
       if (!error && data) {
         setAlerts(data)
@@ -274,8 +276,16 @@ function TutorContent() {
                               </div>
                             </div>
                           </div>
-                          <div className={`rounded-full border px-3 py-1 text-xs font-semibold ${riskColorClass}`}>
-                            {riskLabel}
+                          {/* 3. Integración del SelectorEstadoAlerta adaptado estructuralmente */}
+                          <div className="flex flex-col items-end gap-2">
+                            <div className={`rounded-full border px-3 py-1 text-xs font-semibold ${riskColorClass}`}>
+                              {riskLabel}
+                            </div>
+                            <SelectorEstadoAlerta 
+                              alertaId={alert.id} 
+                              estadoInicial={alert.estado} 
+                              onActualizado={() => window.location.reload()} 
+                            />
                           </div>
                         </div>
                       </div>
