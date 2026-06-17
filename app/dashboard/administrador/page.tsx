@@ -109,6 +109,19 @@ export default function AdministradorPage() {
     loadStudents()
   }, [])
 
+    useEffect(() => {
+    const loadScholarships = async () => {
+      try {
+        const data = await getScholarships()
+        setScholarships(data || [])
+      } catch (error) {
+        console.error('Error cargando becas:', error)
+        setScholarships([])
+      }
+    }
+    loadScholarships()
+  }, [])
+
   // ─── Estudiantes ─────────────────────────────────────────────────────────
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -288,7 +301,6 @@ export default function AdministradorPage() {
 
       if (estudianteError || !estudianteData) {
         console.error('Estudiante no encontrado:', academicForm.estudiante)
-        // Fallback: guardar en memoria local para no perder funcionalidad
         const newRecord = { id: Date.now(), ...academicForm }
         const updatedRecords = [...academicRecords, newRecord]
         setAcademicRecords(updatedRecords)
@@ -298,35 +310,32 @@ export default function AdministradorPage() {
       }
 
       if (editingAcademicId !== null) {
-        // Actualizar registro existente
         await supabase
           .from('registro_academico')
           .update({
-            nota,
-            asistencia,
-            cursos_desaprobados,
+            nota: nota,
+            asistencia: asistencia,
+            cursos_desaprobados: cursosDesaprobados,
             fecha_registro: new Date().toISOString().split('T')[0],
           })
           .eq('id', editingAcademicId)
         setEditingAcademicId(null)
       } else {
-        // Insertar nuevo registro académico
         await supabase
           .from('registro_academico')
           .insert({
             estudiante_id: estudianteData.id,
-            nota,
-            asistencia,
-            cursos_desaprobados,
+            nota: nota,
+            asistencia: asistencia,
+            cursos_desaprobados: cursosDesaprobados,
             fecha_registro: new Date().toISOString().split('T')[0],
           })
       }
 
-      // Actualizar el puntaje de riesgo en la tabla estudiantes
       const assessment = calculateRisk({
         gpa: nota,
         attendance: asistencia,
-        cursosDesaprobados,
+        cursosDesaprobados: cursosDesaprobados,
       })
 
       await supabase
@@ -338,11 +347,9 @@ export default function AdministradorPage() {
         })
         .eq('id', estudianteData.id)
 
-      // Recargar datos frescos
       const refreshed = await refreshStudents()
       setStudents(refreshed)
 
-      // También actualizar registros en memoria para la pestaña académico
       const newRecord = { id: Date.now(), ...academicForm }
       const updatedRecords = [...academicRecords, newRecord]
       setAcademicRecords(updatedRecords)

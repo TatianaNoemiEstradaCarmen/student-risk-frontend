@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 
 import { getScholarships } from '@/src/services/scholarshipService'
-import { alerts } from '@/src/data/students'
+import { getStudents } from '@/src/data/students'
 import { SidebarLayout } from '@/components/dashboard/sidebar-layout'
 import { calculateRisk } from '@/src/services/riskEngine'
 import { Button } from '@/components/ui/button'
@@ -64,6 +64,7 @@ export default function EstudiantePage() {
   })
   const [submittedRequests, setSubmittedRequests] = useState<TutoringRequest[]>([])
   const [successMessage, setSuccessMessage] = useState('')
+  const [alerts, setAlerts] = useState<any[]>([])
   const [scholarships, setScholarships] = useState<Scholarship[]>([])
 
   const myRisk = calculateRisk({
@@ -99,6 +100,35 @@ export default function EstudiantePage() {
       }
     }
     loadRequests()
+  }, [])
+
+  useEffect(() => {
+    const loadAlerts = async () => {
+      const { data, error } = await supabase
+        .from('alertas_academicas')
+        .select(`
+          id,
+          mensaje,
+          recomendacion,
+          nivel_riesgo,
+          fecha_alerta,
+          estudiantes:estudiante_id (
+            id,
+            nombre
+          )
+        `)
+        .order('fecha_alerta', { ascending: false })
+
+      if (!error && data) {
+        const formatted = data.map((a: any) => ({
+          student: a.estudiantes?.nombre || 'Tú',
+          message: a.mensaje,
+          recommendation: a.recomendacion,
+        }))
+        setAlerts(formatted)
+      }
+    }
+    loadAlerts()
   }, [])
 
   useEffect(() => {
@@ -422,42 +452,50 @@ export default function EstudiantePage() {
 
         {tab === 'alertas' && (
           <div className="space-y-4">
-            {alerts.map(alert => {
-              const comps: any = myRisk.components
-              return (
-                <div key={alert.student} className="rounded-xl border border-red-500/20 bg-red-500/10 p-6 backdrop-blur-xl">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-4">
-                      <AlertTriangle className="mt-1 h-5 w-5 text-red-400" />
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-foreground">{alert.student}</h3>
-                        <p className="text-sm text-foreground/80 mt-1">{alert.message}</p>
-                        <p className="text-xs text-yellow-400 mt-2">{alert.recommendation}</p>
-                      </div>
-                    </div>
-                    <span className="rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-400">
-                      Score: {myRisk.riskScore.toFixed(1)}
-                    </span>
-                  </div>
-                  <div className="mt-4 grid grid-cols-4 gap-3">
-                    {[
-                      { label: 'Notas', score: comps.gpaScore, color: 'bg-red-500' },
-                      { label: 'Asistencia', score: comps.attendanceScore, color: 'bg-yellow-500' },
-                      { label: 'Desaprobados', score: comps.failedCoursesScore, color: 'bg-orange-500' },
-                      { label: 'Progreso', score: comps.progressScore, color: 'bg-blue-500' },
-                    ].map(item => (
-                      <div key={item.label} className="text-center">
-                        <p className="text-[10px] text-foreground/50 mb-1">{item.label}</p>
-                        <div className="h-2 w-full rounded-full bg-black/20 overflow-hidden">
-                          <div className={`h-2 rounded-full ${item.color} transition-all`} style={{ width: `${item.score}%` }} />
+            {alerts.length === 0 ? (
+              <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl text-center">
+                <AlertCircle className="h-12 w-12 text-foreground/20 mx-auto mb-3" />
+                <p className="text-foreground/50 text-sm">No tienes alertas activas.</p>
+                <p className="text-foreground/30 text-xs mt-1">Las alertas aparecen cuando el sistema detecta riesgo medio o alto.</p>
+              </div>
+            ) : (
+              alerts.map((alert, index) => {
+                const comps: any = myRisk.components
+                return (
+                  <div key={index} className="rounded-xl border border-red-500/20 bg-red-500/10 p-6 backdrop-blur-xl">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-4">
+                        <AlertTriangle className="mt-1 h-5 w-5 text-red-400" />
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-foreground">{alert.student}</h3>
+                          <p className="text-sm text-foreground/80 mt-1">{alert.message}</p>
+                          <p className="text-xs text-yellow-400 mt-2">{alert.recommendation}</p>
                         </div>
-                        <p className="mt-1 text-xs font-medium text-foreground/80">{item.score.toFixed(0)}%</p>
                       </div>
-                    ))}
+                      <span className="rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-400">
+                        Score: {myRisk.riskScore.toFixed(1)}
+                      </span>
+                    </div>
+                    <div className="mt-4 grid grid-cols-4 gap-3">
+                      {[
+                        { label: 'Notas', score: comps.gpaScore, color: 'bg-red-500' },
+                        { label: 'Asistencia', score: comps.attendanceScore, color: 'bg-yellow-500' },
+                        { label: 'Desaprobados', score: comps.failedCoursesScore, color: 'bg-orange-500' },
+                        { label: 'Progreso', score: comps.progressScore, color: 'bg-blue-500' },
+                      ].map(item => (
+                        <div key={item.label} className="text-center">
+                          <p className="text-[10px] text-foreground/50 mb-1">{item.label}</p>
+                          <div className="h-2 w-full rounded-full bg-black/20 overflow-hidden">
+                            <div className={`h-2 rounded-full ${item.color} transition-all`} style={{ width: `${item.score}%` }} />
+                          </div>
+                          <p className="mt-1 text-xs font-medium text-foreground/80">{item.score.toFixed(0)}%</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )
-            })}
+                )
+              })
+            )}
           </div>
         )}
       </div>
