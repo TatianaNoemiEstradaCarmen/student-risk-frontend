@@ -867,10 +867,6 @@ export default function AdministradorPage() {
           </div>
         )}
 
-        {tab === 'analisisIA' && (
-          <AIAnalisisDesercion />
-        )}
-
         {tab === 'labIA' && (
           <LabIA />
         )}
