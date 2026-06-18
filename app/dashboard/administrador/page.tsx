@@ -460,7 +460,6 @@ export default function AdministradorPage() {
     { label: 'Oportunidades Laborales', href: '/dashboard/administrador/oportunidades', icon: <Briefcase className="h-5 w-5" /> },
     { label: 'Configuración', href: '/dashboard/administrador?tab=config', icon: <Settings className="h-5 w-5" /> },
     { label: 'Importar Datos', href: '/dashboard/administrador?tab=importacion', icon: <Plus className="h-5 w-5" /> },
-    },
   ]
 
   const currentRole = userRoles[0]?.role || 'estudiante'
