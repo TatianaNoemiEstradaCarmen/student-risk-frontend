@@ -568,15 +568,15 @@ export default function LabIA() {
   ]
 
   // ── Tabs ──────────────────────────────────────────────────────────────
-  const TABS = [
-    { id: 'datos',       label: '📂 Datos' },
-    { id: 'overview',    label: '📊 Resumen', disabled: !ran },
-    { id: 'patrones',    label: '🔍 Patrones', disabled: !ran },
-    { id: 'knn',         label: '🔵 KNN', disabled: !ran },
-    { id: 'kmeans',      label: '🟡 K-Means', disabled: !ran },
-    { id: 'logreg',      label: '🟢 Regresión', disabled: !ran },
-    { id: 'importancia', label: '🎯 Variables', disabled: !ran },
-  ] as const
+  const TABS: { id: ActiveTab; label: string; disabled: boolean }[] = [
+    { id: 'datos',       label: '📂 Datos',        disabled: false },
+    { id: 'overview',    label: '📊 Resumen',      disabled: !ran },
+    { id: 'patrones',    label: '🔍 Patrones',     disabled: !ran },
+    { id: 'knn',         label: '🔵 KNN',          disabled: !ran },
+    { id: 'kmeans',      label: '🟡 K-Means',      disabled: !ran },
+    { id: 'logreg',      label: '🟢 Regresión',    disabled: !ran },
+    { id: 'importancia', label: '🎯 Variables',    disabled: !ran },
+  ]
 
   // ─────────────────────────────────────────────────────────────────────
   return (
@@ -1008,7 +1008,7 @@ export default function LabIA() {
                     label={{ value: 'Promedio /20', position: 'insideBottom', offset: -15, fill: 'rgba(255,255,255,0.3)', fontSize: 10 }} />
                   <YAxis dataKey="y" name="Asistencia" domain={[0, 100]} tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} />
                   <Tooltip contentStyle={{ background: '#1e1e2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 11 }}
-                    formatter={(v: any, n: string) => [n === 'Promedio' ? `${v}/20` : `${v}%`, n]} />
+                    formatter={(v: any, n: any) => [n === 'Promedio' ? `${v}/20` : `${v}%`, n]} />
                   {clusters.map(c => (
                     <Scatter key={c.id} name={c.nombre}
                       data={c.miembros.map(m => ({ x: m.promedio, y: m.asistencia, nombre: m.nombre }))}
