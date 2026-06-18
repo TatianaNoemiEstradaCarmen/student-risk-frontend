@@ -1,15 +1,12 @@
 'use client'
 
-import { useEffect } from "react"
-import { supabase } from "@/src/lib/supabase"
+import { Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { Eye, EyeOff, Lock, Mail, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useSearchParams } from 'next/navigation'
-
 import {
   Select,
   SelectContent,
@@ -18,20 +15,22 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-// ─── Credenciales fijas para admin y tutor ────────────────────────────────────
+// ✅ FIX 1: Desactiva el prerender estático — necesario porque usa sessionStorage
+export const dynamic = 'force-dynamic'
+
 const FIXED_USERS: Record<string, { email: string; password: string }> = {
-  administrador: { email: 'admin@usil.com.pe',  password: '123456' },
-  tutor:         { email: 'tutor@usil.com.pe',  password: '123456' },
+  administrador: { email: 'admin@usil.com.pe', password: '123456' },
+  tutor:         { email: 'tutor@usil.com.pe', password: '123456' },
 }
 
-export default function LoginPage() {
-  const [showPassword, setShowPassword]   = useState(false)
-  const [role, setRole]                   = useState('')
-  const [isLoading, setIsLoading]         = useState(false)
-  const [email, setEmail]                 = useState('')
-  const [password, setPassword]           = useState('')
-  const [error, setError]                 = useState('')
-  const searchParams = useSearchParams()
+function LoginForm() {
+  const [showPassword, setShowPassword] = useState(false)
+  const [role, setRole]                 = useState('')
+  const [isLoading, setIsLoading]       = useState(false)
+  const [email, setEmail]               = useState('')
+  const [password, setPassword]         = useState('')
+  const [error, setError]               = useState('')
+
   const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -46,7 +45,6 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      // ── Admin / Tutor: credenciales fijas ────────────────────────────────
       if (role === 'administrador' || role === 'tutor') {
         const fixed = FIXED_USERS[role]
         if (email !== fixed.email || password !== fixed.password) {
@@ -60,8 +58,10 @@ export default function LoginPage() {
         return
       }
 
-      // ── Estudiante: buscar en tabla `estudiantes` por correo ─────────────
       if (role === 'estudiante') {
+        // ✅ FIX 2: Import dinámico — nunca se ejecuta en el servidor durante el build
+        const { supabase } = await import('@/src/lib/supabase')
+
         const correoNorm = email.trim().toLowerCase()
 
         const { data: estudiante, error: dbError } = await supabase
@@ -71,7 +71,6 @@ export default function LoginPage() {
           .maybeSingle()
 
         if (dbError) {
-          console.error('Error Supabase:', dbError.message)
           setError('Error al verificar credenciales. Inténtalo de nuevo.')
           setIsLoading(false)
           return
@@ -83,18 +82,16 @@ export default function LoginPage() {
           return
         }
 
-        // Verificar password (campo `password` en la tabla, o contraseña por defecto)
         if (password !== '123456') {
           setError('Contraseña incorrecta.')
           setIsLoading(false)
           return
         }
 
-        // Guardar sesión
-        sessionStorage.setItem('userRole',      'estudiante')
-        sessionStorage.setItem('auth_email',    correoNorm)
-        sessionStorage.setItem('estudiante_id', String(estudiante.id))
-        sessionStorage.setItem('estudiante_nombre', estudiante.nombre || '')
+        sessionStorage.setItem('userRole',           'estudiante')
+        sessionStorage.setItem('auth_email',         correoNorm)
+        sessionStorage.setItem('estudiante_id',      String(estudiante.id))
+        sessionStorage.setItem('estudiante_nombre',  estudiante.nombre || '')
 
         router.push('/dashboard/estudiante')
         return
@@ -166,7 +163,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Right Side - Login Form */}
+      {/* Right Side */}
       <div className="flex w-full flex-col items-center justify-center px-6 lg:w-1/2 lg:px-12">
         <div className="w-full max-w-sm space-y-8">
           <div className="flex items-center gap-3 lg:hidden">
@@ -185,7 +182,6 @@ export default function LoginPage() {
             </div>
 
             <form onSubmit={handleLogin} className="space-y-5">
-              {/* Role */}
               <div className="space-y-2">
                 <Label htmlFor="role" className="text-foreground">Tipo de Usuario</Label>
                 <div className="relative">
@@ -203,7 +199,6 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Email */}
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-foreground">Correo Institucional</Label>
                 <div className="relative">
@@ -214,15 +209,14 @@ export default function LoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder={
-                      role === 'administrador' ? 'admin@edu.com' :
-                      role === 'tutor'         ? 'tutor@edu.com' :
+                      role === 'administrador' ? 'admin@usil.com.pe' :
+                      role === 'tutor'         ? 'tutor@usil.com.pe' :
                       'tu.correo@universidad.edu'
                     }
                     className="border-primary/20 bg-background/50 pl-10 text-foreground placeholder:text-foreground/40"
                     required
                   />
                 </div>
-                {/* Ayuda visual para estudiantes */}
                 {role === 'estudiante' && (
                   <p className="text-xs text-foreground/50">
                     Usa el correo con el que fuiste registrado.
@@ -230,7 +224,6 @@ export default function LoginPage() {
                 )}
               </div>
 
-              {/* Password */}
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-foreground">Contraseña</Label>
                 <div className="relative">
@@ -282,11 +275,19 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Background Gradient */}
       <div className="pointer-events-none fixed inset-0">
         <div className="absolute -right-1/4 -top-1/4 h-96 w-96 rounded-full bg-primary/10 blur-3xl"></div>
         <div className="absolute -left-1/4 -bottom-1/4 h-96 w-96 rounded-full bg-secondary/10 blur-3xl"></div>
       </div>
     </main>
+  )
+}
+
+// ✅ FIX 3: useSearchParams necesita estar dentro de Suspense
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center bg-background" />}>
+      <LoginForm />
+    </Suspense>
   )
 }
