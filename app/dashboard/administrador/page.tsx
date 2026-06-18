@@ -866,7 +866,7 @@ export default function AdministradorPage() {
           </div>
         )}
 
-        {tab === 'labIA' && (
+        {tab === 'LabIA' && (
           <LabIA />
         )}
 
