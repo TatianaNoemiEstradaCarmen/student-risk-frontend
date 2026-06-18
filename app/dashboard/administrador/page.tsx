@@ -30,7 +30,7 @@ import { RiskCard } from '@/components/dashboard/risk-card'
 import { RiskFactorsBadge } from '@/components/dashboard/risk-factors-badge'
 import type { RiskFactor } from '@/components/dashboard/risk-factors-badge'
 import { supabase } from '@/src/lib/supabase'
-import AIAnalisisDesercion from '@/components/admin/AIAnalisisDesercion'
+import LabIA from '@/components/admin/LabIA'
 
 import {
   Select,
@@ -460,7 +460,6 @@ export default function AdministradorPage() {
     { label: 'Oportunidades Laborales', href: '/dashboard/administrador/oportunidades', icon: <Briefcase className="h-5 w-5" /> },
     { label: 'Configuración', href: '/dashboard/administrador?tab=config', icon: <Settings className="h-5 w-5" /> },
     { label: 'Importar Datos', href: '/dashboard/administrador?tab=importacion', icon: <Plus className="h-5 w-5" /> },
-    { label: 'Análisis IA', href: '/dashboard/administrador?tab=analisisIA', icon: <BarChart3 className="h-5 w-5" />
     },
   ]
 
@@ -491,7 +490,7 @@ export default function AdministradorPage() {
             { id: 'academico', label: 'Registro Académico' },
             { id: 'tramitesApoyo', label: 'Trámites de Apoyo' },
             { id: 'reportes', label: 'Reportes' },
-            { id: 'analisisIA', label: 'Análisis IA' },
+            { id: 'labIA', label: 'Lab IA' }
           ].map(tabItem => (
             <button
               key={tabItem.id}
@@ -870,6 +869,10 @@ export default function AdministradorPage() {
 
         {tab === 'analisisIA' && (
           <AIAnalisisDesercion />
+        )}
+
+        {tab === 'labIA' && (
+          <LabIA />
         )}
 
         {/* ── REPORTES ── */}
