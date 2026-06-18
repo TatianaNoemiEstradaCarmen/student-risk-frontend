@@ -11,13 +11,14 @@ import {
   AlertTriangle,
   TrendingUp,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  ClipboardList,
+  Save
 } from 'lucide-react'
 
 import { getScholarships } from '@/src/services/scholarshipService'
 // ✅ CAMBIO 1: Importar servicio de trámites
 import { getTramites } from '@/src/services/tramitesService'
-import { getStudents } from '@/src/data/students'
 import { SidebarLayout } from '@/components/dashboard/sidebar-layout'
 import { calculateRisk } from '@/src/services/riskEngine'
 import { Button } from '@/components/ui/button'
@@ -49,8 +50,17 @@ interface TutoringRequest {
   estado: string
 }
 
+interface CurrentStudent {
+  id: number
+  nombre: string
+  codigo?: string
+  correo?: string
+  carrera?: string
+  nivel_riesgo?: string
+}
+
 // ✅ CAMBIO 2: Agregar 'tramites' al tipo de tabs
-type StudentTab = 'solicitudes' | 'recomendaciones' | 'becas' | 'tramites' | 'alertas'
+type StudentTab = 'solicitudes' | 'recomendaciones' | 'becas' | 'tramites' | 'alertas' | 'encuesta'
 
 const selectClass = 'w-full rounded-md border border-primary/20 bg-background/50 px-3 py-2 text-sm text-foreground'
 
@@ -71,6 +81,14 @@ export default function EstudiantePage() {
   const [scholarships, setScholarships] = useState<Scholarship[]>([])
   // ✅ CAMBIO 3: Agregar estado para trámites
   const [tramites, setTramites] = useState<any[]>([])
+
+  // Estados para la encuesta de situación del estudiante
+  const [currentStudent, setCurrentStudent] = useState<CurrentStudent | null>(null)
+  const [respuestaAsistencia, setRespuestaAsistencia] = useState('')
+  const [respuestaEconomica, setRespuestaEconomica] = useState('')
+  const [respuestaPersonal, setRespuestaPersonal] = useState('')
+  const [savingSurvey, setSavingSurvey] = useState(false)
+  const [surveyMessage, setSurveyMessage] = useState('')
 
   const myRisk = calculateRisk({
     gpa: 11,
@@ -153,6 +171,31 @@ export default function EstudiantePage() {
   }, [])
 
   useEffect(() => {
+    const loadCurrentStudent = async () => {
+      if (typeof window === 'undefined') return
+
+      const authEmail = sessionStorage.getItem('auth_email')
+      if (!authEmail) return
+
+      const { data, error } = await supabase
+        .from('estudiantes')
+        .select('id, nombre, codigo, correo, carrera, nivel_riesgo')
+        .eq('correo', authEmail)
+        .maybeSingle()
+
+      if (error) {
+        console.error('Error obteniendo estudiante actual:', error.message)
+        setCurrentStudent(null)
+        return
+      }
+
+      setCurrentStudent(data || null)
+    }
+
+    loadCurrentStudent()
+  }, [])
+
+  useEffect(() => {
     const syncTabFromUrl = () => {
       const params = new URLSearchParams(window.location.search)
       const currentTab = params.get('tab')
@@ -161,7 +204,8 @@ export default function EstudiantePage() {
         currentTab === 'recomendaciones' ||
         currentTab === 'becas' ||
         currentTab === 'tramites' ||
-        currentTab === 'alertas'
+        currentTab === 'alertas' ||
+        currentTab === 'encuesta'
       ) {
         setTab(currentTab)
       } else {
@@ -257,12 +301,137 @@ export default function EstudiantePage() {
     setTimeout(() => setSuccessMessage(''), 3000)
   }
 
+  const detectarCausa = (categoria: string, respuesta: string) => {
+    const texto = respuesta.toLowerCase()
+
+    if (categoria === 'Académica') {
+      if (
+        texto.includes('trabajo') ||
+        texto.includes('tarde') ||
+        texto.includes('falto') ||
+        texto.includes('asistencia') ||
+        texto.includes('horario')
+      ) {
+        return 'Posible baja asistencia por carga laboral o dificultad de horarios'
+      }
+      return 'Posible dificultad académica o de asistencia'
+    }
+
+    if (categoria === 'Económica') {
+      if (
+        texto.includes('dinero') ||
+        texto.includes('económica') ||
+        texto.includes('economica') ||
+        texto.includes('pagar') ||
+        texto.includes('reducir cursos')
+      ) {
+        return 'Posible dificultad económica para continuar los estudios'
+      }
+      return 'Posible factor económico asociado a la continuidad académica'
+    }
+
+    if (categoria === 'Personal') {
+      if (
+        texto.includes('familia') ||
+        texto.includes('apoyo') ||
+        texto.includes('tiempo') ||
+        texto.includes('horario') ||
+        texto.includes('desmotivado')
+      ) {
+        return 'Posible factor personal o familiar que requiere seguimiento'
+      }
+      return 'Posible factor personal asociado al riesgo de deserción'
+    }
+
+    return 'Respuesta asociada al análisis de riesgo del estudiante'
+  }
+
+  const guardarEncuesta = async () => {
+    setSurveyMessage('')
+
+    if (
+      !respuestaAsistencia.trim() ||
+      !respuestaEconomica.trim() ||
+      !respuestaPersonal.trim()
+    ) {
+      setSurveyMessage('Completa todas las respuestas antes de guardar la encuesta.')
+      return
+    }
+
+    if (!currentStudent) {
+      setSurveyMessage('No se encontró el estudiante asociado a la sesión. Verifica que el correo del login exista en la tabla estudiantes.')
+      return
+    }
+
+    setSavingSurvey(true)
+
+    const nivelRiesgo = currentStudent.nivel_riesgo || 'No definido'
+
+    const respuestas = [
+      {
+        estudiante_id: currentStudent.id,
+        pregunta: '¿Tienes dificultades para asistir regularmente a clases?',
+        respuesta: respuestaAsistencia.trim(),
+        categoria: 'Académica',
+        causa_detectada: detectarCausa('Académica', respuestaAsistencia),
+        nivel_riesgo: nivelRiesgo,
+      },
+      {
+        estudiante_id: currentStudent.id,
+        pregunta: '¿Tu situación económica afecta tu continuidad académica?',
+        respuesta: respuestaEconomica.trim(),
+        categoria: 'Económica',
+        causa_detectada: detectarCausa('Económica', respuestaEconomica),
+        nivel_riesgo: nivelRiesgo,
+      },
+      {
+        estudiante_id: currentStudent.id,
+        pregunta: '¿Cuentas con apoyo familiar para continuar tus estudios?',
+        respuesta: respuestaPersonal.trim(),
+        categoria: 'Personal',
+        causa_detectada: detectarCausa('Personal', respuestaPersonal),
+        nivel_riesgo: nivelRiesgo,
+      },
+    ]
+
+    // Se reemplazan las respuestas anteriores para evitar duplicados por estudiante.
+    const { error: deleteError } = await supabase
+      .from('respuestas_encuesta')
+      .delete()
+      .eq('estudiante_id', currentStudent.id)
+
+    if (deleteError) {
+      console.error('Error eliminando respuestas anteriores:', deleteError.message)
+      setSurveyMessage('No se pudieron actualizar las respuestas anteriores.')
+      setSavingSurvey(false)
+      return
+    }
+
+    const { error } = await supabase
+      .from('respuestas_encuesta')
+      .insert(respuestas)
+
+    if (error) {
+      console.error('Error guardando encuesta:', error.message)
+      setSurveyMessage('No se pudo guardar la encuesta. Revisa la tabla respuestas_encuesta en Supabase.')
+      setSavingSurvey(false)
+      return
+    }
+
+    setRespuestaAsistencia('')
+    setRespuestaEconomica('')
+    setRespuestaPersonal('')
+    setSurveyMessage('Encuesta guardada correctamente. El tutor ya puede visualizar tus respuestas.')
+    setSavingSurvey(false)
+  }
+
   // ✅ CAMBIO 5: Agregar trámites al menú lateral
   const menuItems = [
     { label: 'Solicitar Tutoría', href: '/dashboard/estudiante?tab=solicitudes', icon: <MessageSquare className="h-5 w-5" /> },
     { label: 'Recomendaciones de Apoyo', href: '/dashboard/estudiante?tab=recomendaciones', icon: <BookOpen className="h-5 w-5" /> },
     { label: 'Becas Disponibles', href: '/dashboard/estudiante?tab=becas', icon: <Gift className="h-5 w-5" /> },
     { label: 'Trámites de Apoyo', href: '/dashboard/estudiante?tab=tramites', icon: <BookOpen className="h-5 w-5" /> },
+    { label: 'Responder Encuesta', href: '/dashboard/estudiante?tab=encuesta', icon: <ClipboardList className="h-5 w-5" /> },
     { label: 'Mis Alertas Académicas', href: '/dashboard/estudiante?tab=alertas', icon: <AlertCircle className="h-5 w-5" /> },
   ]
 
@@ -271,7 +440,7 @@ export default function EstudiantePage() {
       <div className="max-w-4xl">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground">Bienvenido, Estudiante</h1>
-          <p className="text-foreground/70">Gestiona tus solicitudes de tutoría, becas, recomendaciones y alertas académicas</p>
+          <p className="text-foreground/70">Gestiona tus solicitudes de tutoría, becas, recomendaciones, encuestas y alertas académicas</p>
           <div className="mt-4 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-4">
             <div className="flex items-start gap-3">
               <TrendingUp className="mt-1 h-5 w-5 text-yellow-400" />
@@ -290,6 +459,7 @@ export default function EstudiantePage() {
             { id: 'recomendaciones', label: 'Recomendaciones de Apoyo' },
             { id: 'becas', label: 'Becas Disponibles' },
             { id: 'tramites', label: 'Trámites de Apoyo' },
+            { id: 'encuesta', label: 'Responder Encuesta' },
             { id: 'alertas', label: 'Mis Alertas' },
           ].map(tabItem => (
             <button
@@ -515,6 +685,106 @@ export default function EstudiantePage() {
                 </div>
               ))
             )}
+          </div>
+        )}
+
+
+        {tab === 'encuesta' && (
+          <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
+            <div className="mb-6 flex items-start gap-3">
+              <div className="rounded-lg bg-primary/10 p-2">
+                <ClipboardList className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-foreground">Encuesta de Situación del Estudiante</h2>
+                <p className="mt-1 text-sm text-foreground/70">
+                  Responde esta encuesta para que el tutor académico pueda comprender mejor posibles causas
+                  de riesgo y brindarte un acompañamiento más oportuno.
+                </p>
+              </div>
+            </div>
+
+            {!currentStudent && (
+              <div className="mb-5 rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-4">
+                <p className="text-sm text-yellow-500">
+                  No se encontró un estudiante asociado a tu correo de sesión. Verifica que el correo usado
+                  en el login exista en la tabla estudiantes de Supabase.
+                </p>
+              </div>
+            )}
+
+            {currentStudent && (
+              <div className="mb-5 rounded-lg border border-primary/20 bg-background/40 p-4">
+                <p className="text-sm font-semibold text-foreground">Estudiante asociado</p>
+                <p className="text-sm text-foreground/70">
+                  {currentStudent.nombre} · {currentStudent.codigo || 'Sin código'} · {currentStudent.carrera || 'Carrera no registrada'}
+                </p>
+              </div>
+            )}
+
+            <div className="grid gap-5">
+              <div className="space-y-2">
+                <Label htmlFor="respuestaAsistencia" className="text-foreground">
+                  ¿Tienes dificultades para asistir regularmente a clases?
+                </Label>
+                <Textarea
+                  id="respuestaAsistencia"
+                  value={respuestaAsistencia}
+                  onChange={(e) => setRespuestaAsistencia(e.target.value)}
+                  placeholder="Ejemplo: Sí, porque trabajo en las mañanas y a veces llego tarde."
+                  className="min-h-28 border-primary/20 bg-background/50"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="respuestaEconomica" className="text-foreground">
+                  ¿Tu situación económica afecta tu continuidad académica?
+                </Label>
+                <Textarea
+                  id="respuestaEconomica"
+                  value={respuestaEconomica}
+                  onChange={(e) => setRespuestaEconomica(e.target.value)}
+                  placeholder="Ejemplo: Sí, actualmente estoy evaluando reducir cursos por falta de dinero."
+                  className="min-h-28 border-primary/20 bg-background/50"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="respuestaPersonal" className="text-foreground">
+                  ¿Cuentas con apoyo familiar para continuar tus estudios?
+                </Label>
+                <Textarea
+                  id="respuestaPersonal"
+                  value={respuestaPersonal}
+                  onChange={(e) => setRespuestaPersonal(e.target.value)}
+                  placeholder="Ejemplo: Sí, pero necesito organizar mejor mis horarios."
+                  className="min-h-28 border-primary/20 bg-background/50"
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              {surveyMessage ? (
+                <div className="flex items-center gap-2 text-sm text-foreground/80">
+                  <CheckCircle className="h-4 w-4 text-primary" />
+                  <span>{surveyMessage}</span>
+                </div>
+              ) : (
+                <p className="text-sm text-foreground/50">
+                  Al guardar, tus respuestas quedarán disponibles para revisión del tutor académico.
+                </p>
+              )}
+
+              <Button
+                type="button"
+                onClick={guardarEncuesta}
+                disabled={savingSurvey || !currentStudent}
+                className="bg-gradient-to-r from-primary to-secondary"
+              >
+                <Save className="mr-2 h-4 w-4" />
+                {savingSurvey ? 'Guardando...' : 'Guardar encuesta'}
+              </Button>
+            </div>
           </div>
         )}
 

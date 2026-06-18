@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   ShieldAlert,
   ShieldX,
+  ClipboardList,
 } from 'lucide-react'
 
 // API TUTORÍAS ALESSANDRO
@@ -50,6 +51,11 @@ function TutorContent() {
   const [filtroRiesgo, setFiltroRiesgo] = useState('ALTO')
   const [loadingAlerts, setLoadingAlerts] = useState(true)
 
+  const [surveyResponses, setSurveyResponses] = useState<any[]>([])
+  const [loadingResponses, setLoadingResponses] = useState(true)
+  const [filtroCategoria, setFiltroCategoria] = useState('TODAS')
+  const [searchResponseQuery, setSearchResponseQuery] = useState('')
+
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
   const [studentsList, setStudentsList] = useState<any[]>([])
@@ -59,36 +65,42 @@ function TutorContent() {
 
   // ─── Carga solicitudes desde Supabase (Aporte del equipo) ───
   useEffect(() => {
-    async function fetchSolicitudes() {
-      const { data, error } = await supabase
-        .from('solicitudes_tutoria')
-        .select(`
-          id,
-          motivo,
-          urgencia,
-          telefono,
-          modalidad,
-          estado,
-          tipo_ayuda,
-          fecha_solicitud,
-          estudiantes:estudiante_id (
-            id,
-            nombre,
-            correo,
-            carrera,
-            codigo
-          )
-        `)
-        .order('fecha_solicitud', { ascending: false })
+  async function fetchRespuestasEncuesta() {
+    setLoadingResponses(true)
 
-      if (!error && data) {
-        setRequests(data)
-      } else if (error) {
-        console.error('Error solicitudes:', error.message)
-      }
+    const { data, error } = await supabase
+      .from('respuestas_encuesta')
+      .select(`
+        id,
+        estudiante_id,
+        pregunta,
+        respuesta,
+        categoria,
+        causa_detectada,
+        nivel_riesgo,
+        fecha_respuesta,
+        estudiantes:estudiante_id (
+          id,
+          nombre,
+          codigo,
+          correo,
+          carrera
+        )
+      `)
+      .order('fecha_respuesta', { ascending: false })
+
+    if (error) {
+      console.error('Error respuestas encuesta:', error.message)
+      setSurveyResponses([])
+    } else {
+      setSurveyResponses(data || [])
     }
-    fetchSolicitudes()
-  }, [])
+
+    setLoadingResponses(false)
+  }
+
+  fetchRespuestasEncuesta()
+}, [])
 
   // ─── Carga alertas desde Supabase (Combinado HU-12 + Aporte equipo) ───
   useEffect(() => {
@@ -150,6 +162,45 @@ function TutorContent() {
     return nombre.toLowerCase().includes(query) || codigo.toLowerCase().includes(query)
   })
 
+  const normalizeText = (value: string) =>
+    value
+      ?.toString()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase() || ''
+
+  const filteredSurveyResponses = surveyResponses.filter((item: any) => {
+    const categoria = normalizeText(item.categoria || '')
+    const categoriaFiltro = normalizeText(filtroCategoria)
+
+    const categoriaMatch =
+      filtroCategoria === 'TODAS' || categoria === categoriaFiltro
+
+    const query = searchResponseQuery.toLowerCase().trim()
+
+    const nombre = item.estudiantes?.nombre || ''
+    const codigo = item.estudiantes?.codigo || ''
+    const correo = item.estudiantes?.correo || ''
+    const carrera = item.estudiantes?.carrera || ''
+    const pregunta = item.pregunta || ''
+    const respuesta = item.respuesta || ''
+    const causa = item.causa_detectada || ''
+    const riesgo = item.nivel_riesgo || ''
+
+    const searchMatch =
+      !query ||
+      nombre.toLowerCase().includes(query) ||
+      codigo.toLowerCase().includes(query) ||
+      correo.toLowerCase().includes(query) ||
+      carrera.toLowerCase().includes(query) ||
+      pregunta.toLowerCase().includes(query) ||
+      respuesta.toLowerCase().includes(query) ||
+      causa.toLowerCase().includes(query) ||
+      riesgo.toLowerCase().includes(query)
+
+    return categoriaMatch && searchMatch
+  })
+
   // Funciones combinadas de diseño
   const getRiskBadgeColor = (nivel: string) => {
     switch (nivel?.toUpperCase()) {
@@ -181,6 +232,7 @@ function TutorContent() {
     { label: 'Alertas de Estudiantes', href: '/dashboard/tutor?tab=alertas', icon: <AlertTriangle className="h-5 w-5" /> },
     { label: 'Solicitudes de Tutoría', href: '/dashboard/tutor?tab=solicitudes', icon: <MessageSquare className="h-5 w-5" /> },
     { label: 'Seguimiento Académico', href: '/dashboard/tutor?tab=seguimiento', icon: <TrendingDown className="h-5 w-5" /> },
+    { label: 'Respuestas de Encuesta', href: '/dashboard/tutor?tab=respuestas', icon: <ClipboardList className="h-5 w-5" /> },
   ]
 
   if (!tabParam) {
@@ -201,6 +253,7 @@ function TutorContent() {
             {activeTab === 'alertas' && 'Gestiona alertas críticas generadas desde los datos académicos reales'}
             {activeTab === 'solicitudes' && 'Revisa y agenda las citas solicitadas por los alumnos'}
             {activeTab === 'seguimiento' && 'Perfil integral de riesgo con factores y recomendaciones'}
+            {activeTab === 'respuestas' && 'Revisa respuestas de encuestas para identificar posibles causas de deserción'}
           </p>
         </div>
 
@@ -468,6 +521,140 @@ function TutorContent() {
             </div>
           </div>
         )}
+
+        {/* ─── TAB: RESPUESTAS DE ENCUESTA ─── */}
+        {activeTab === 'respuestas' && (
+          <div className="rounded-2xl border border-primary/20 bg-card/40 p-6 backdrop-blur-xl">
+            <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="flex items-center gap-2 text-xl font-bold text-foreground">
+                  <ClipboardList className="h-5 w-5 text-primary" />
+                  Revisión de Respuestas del Estudiante
+                </h2>
+                <p className="mt-1 text-sm text-foreground/60">
+                  Consulta las respuestas registradas por los estudiantes para comprender
+                  posibles causas académicas, económicas o personales relacionadas con la deserción.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-2 md:flex-row">
+                <input
+                  value={searchResponseQuery}
+                  onChange={(e) => setSearchResponseQuery(e.target.value)}
+                  placeholder="Buscar estudiante, pregunta o causa..."
+                  className="rounded-md border border-primary/20 bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+
+                <select
+                  value={filtroCategoria}
+                  onChange={(e) => setFiltroCategoria(e.target.value)}
+                  className="rounded-md border border-primary/20 bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                >
+                  <option value="TODAS">Todas las categorías</option>
+                  <option value="ACADEMICA">Académica</option>
+                  <option value="ECONOMICA">Económica</option>
+                  <option value="PERSONAL">Personal</option>
+                  <option value="FAMILIAR">Familiar</option>
+                  <option value="LABORAL">Laboral</option>
+                </select>
+              </div>
+            </div>
+
+            {loadingResponses ? (
+              <div className="flex justify-center py-12">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
+              </div>
+            ) : filteredSurveyResponses.length === 0 ? (
+              <div className="rounded-xl border border-primary/10 bg-background/40 p-8 text-center">
+                <ClipboardList className="mx-auto mb-3 h-12 w-12 text-foreground/20" />
+                <p className="text-sm text-foreground/60">
+                  No hay respuestas registradas para mostrar.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {filteredSurveyResponses.map((item: any) => {
+                  const student = item.estudiantes
+                  const risk = item.nivel_riesgo || 'No definido'
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="rounded-xl border border-primary/10 bg-background/40 p-5 transition-colors hover:bg-primary/5"
+                    >
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div>
+                          <h3 className="text-lg font-semibold text-foreground">
+                            {student?.nombre || 'Estudiante no registrado'}
+                          </h3>
+
+                          <p className="text-sm text-foreground/60">
+                            {student?.codigo || 'Sin código'} · {student?.carrera || 'Carrera no registrada'}
+                          </p>
+
+                          {student?.correo && (
+                            <p className="text-sm text-foreground/50">
+                              {student.correo}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                          <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                            {item.categoria || 'Sin categoría'}
+                          </span>
+
+                          <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${getRiskBadgeColor(risk)}`}>
+                            Riesgo {risk}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        <div className="rounded-lg border border-primary/10 bg-card/60 p-4">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-foreground/50">
+                            Pregunta de la encuesta
+                          </p>
+                          <p className="mt-2 text-sm text-foreground">
+                            {item.pregunta}
+                          </p>
+                        </div>
+
+                        <div className="rounded-lg border border-primary/10 bg-card/60 p-4">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-foreground/50">
+                            Respuesta del estudiante
+                          </p>
+                          <p className="mt-2 text-sm text-foreground">
+                            {item.respuesta}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-yellow-500">
+                          Interpretación para el tutor
+                        </p>
+                        <p className="mt-2 text-sm text-foreground/80">
+                          {item.causa_detectada
+                            ? `La respuesta evidencia una posible causa de riesgo: ${item.causa_detectada}.`
+                            : `La respuesta pertenece a la categoría ${item.categoria || 'registrada'} y puede apoyar el análisis del riesgo del estudiante.`}
+                        </p>
+                      </div>
+
+                      {item.fecha_respuesta && (
+                        <p className="mt-3 text-xs text-foreground/50">
+                          Fecha de respuesta:{' '}
+                          {new Date(item.fecha_respuesta).toLocaleDateString('es-PE')}
+                        </p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
 
       </div>
     </SidebarLayout>
