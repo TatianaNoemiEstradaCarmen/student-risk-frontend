@@ -31,7 +31,6 @@ import { RiskFactorsBadge } from '@/components/dashboard/risk-factors-badge'
 import type { RiskFactor } from '@/components/dashboard/risk-factors-badge'
 import { supabase } from '@/src/lib/supabase'
 import LabIA from '@/components/admin/LabIA'
-import AIAnalisisDesercion from '@/components/admin/AIAnalisisDesercion'
 
 import {
   Select,
@@ -53,7 +52,7 @@ export default function AdministradorPage() {
     | 'academico'
     | 'tramitesApoyo'
     | 'importacion'
-    | 'analisisIA'
+    | 'LabIA'
   >('estudiantes')
 
   const [students, setStudents] = useState<any[]>([])
