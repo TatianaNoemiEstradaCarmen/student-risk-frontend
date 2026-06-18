@@ -13,7 +13,9 @@ import {
   AlertCircle,
   CheckCircle,
   ClipboardList,
-  Save
+  Save,
+  Briefcase,
+  ExternalLink
 } from 'lucide-react'
 
 import { getScholarships } from '@/src/services/scholarshipService'
@@ -59,8 +61,20 @@ interface CurrentStudent {
   nivel_riesgo?: string
 }
 
-// ✅ CAMBIO 2: Agregar 'tramites' al tipo de tabs
-type StudentTab = 'solicitudes' | 'recomendaciones' | 'becas' | 'tramites' | 'alertas' | 'encuesta'
+interface Opportunity {
+  id: number
+  empresa: string
+  cargo: string
+  modalidad: string
+  descripcion: string
+  estado?: string
+  fecha_publicacion?: string
+  enlace?: string
+  carrera_relacionada?: string
+}
+
+// ✅ CAMBIO 2: Agregar tabs del estudiante
+type StudentTab = 'solicitudes' | 'recomendaciones' | 'becas' | 'tramites' | 'oportunidades' | 'alertas' | 'encuesta'
 
 const selectClass = 'w-full rounded-md border border-primary/20 bg-background/50 px-3 py-2 text-sm text-foreground'
 
@@ -81,6 +95,12 @@ export default function EstudiantePage() {
   const [scholarships, setScholarships] = useState<Scholarship[]>([])
   // ✅ CAMBIO 3: Agregar estado para trámites
   const [tramites, setTramites] = useState<any[]>([])
+
+  // Estados para oportunidades laborales (HU-20)
+  const [oportunidadesLaborales, setOportunidadesLaborales] = useState<Opportunity[]>([])
+  const [loadingOportunidades, setLoadingOportunidades] = useState(false)
+  const [searchOportunidad, setSearchOportunidad] = useState('')
+  const [filtroModalidad, setFiltroModalidad] = useState('TODAS')
 
   // Estados para la encuesta de situación del estudiante
   const [currentStudent, setCurrentStudent] = useState<CurrentStudent | null>(null)
@@ -170,6 +190,35 @@ export default function EstudiantePage() {
     loadTramites()
   }, [])
 
+  // HU-20: cargar oportunidades laborales desde Supabase
+  useEffect(() => {
+    const loadOportunidadesLaborales = async () => {
+      setLoadingOportunidades(true)
+
+      const { data, error } = await supabase
+        .from('oportunidades_laborales')
+        .select('*')
+
+      if (error) {
+        console.error('Error cargando oportunidades laborales:', error.message)
+        setOportunidadesLaborales([])
+      } else {
+        const sorted = [...(data || [])].sort((a: any, b: any) => {
+          const fechaA = new Date(a.fecha_publicacion || a.created_at || 0).getTime()
+          const fechaB = new Date(b.fecha_publicacion || b.created_at || 0).getTime()
+          if (fechaA !== fechaB) return fechaB - fechaA
+          return Number(b.id || 0) - Number(a.id || 0)
+        })
+
+        setOportunidadesLaborales(sorted as Opportunity[])
+      }
+
+      setLoadingOportunidades(false)
+    }
+
+    loadOportunidadesLaborales()
+  }, [])
+
   useEffect(() => {
     const loadCurrentStudent = async () => {
       if (typeof window === 'undefined') return
@@ -215,6 +264,7 @@ export default function EstudiantePage() {
         currentTab === 'recomendaciones' ||
         currentTab === 'becas' ||
         currentTab === 'tramites' ||
+        currentTab === 'oportunidades' ||
         currentTab === 'alertas' ||
         currentTab === 'encuesta'
       ) {
@@ -461,12 +511,47 @@ export default function EstudiantePage() {
     setSavingSurvey(false)
   }
 
-  // ✅ CAMBIO 5: Agregar trámites al menú lateral
+  const normalizarTexto = (value: string) =>
+    String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+
+  const filteredOportunidadesLaborales = oportunidadesLaborales.filter((item: Opportunity) => {
+    const estadoNormalizado = normalizarTexto(item.estado || '')
+
+    const estaPublicada =
+      estadoNormalizado === '' ||
+      estadoNormalizado === 'publicada' ||
+      estadoNormalizado === 'publicado' ||
+      estadoNormalizado === 'activo' ||
+      estadoNormalizado === 'activa' ||
+      estadoNormalizado === 'vigente'
+
+    const modalidadNormalizada = normalizarTexto(item.modalidad || '')
+    const filtroNormalizado = normalizarTexto(filtroModalidad)
+
+    const modalidadMatch =
+      filtroModalidad === 'TODAS' || modalidadNormalizada === filtroNormalizado
+
+    const query = normalizarTexto(searchOportunidad)
+    const searchMatch =
+      normalizarTexto(item.empresa || '').includes(query) ||
+      normalizarTexto(item.cargo || '').includes(query) ||
+      normalizarTexto(item.modalidad || '').includes(query) ||
+      normalizarTexto(item.descripcion || '').includes(query) ||
+      normalizarTexto(item.carrera_relacionada || '').includes(query)
+
+    return estaPublicada && modalidadMatch && searchMatch
+  })
+
+  // ✅ CAMBIO 5: Agregar trámites y oportunidades laborales al menú lateral
   const menuItems = [
     { label: 'Solicitar Tutoría', href: '/dashboard/estudiante?tab=solicitudes', icon: <MessageSquare className="h-5 w-5" /> },
     { label: 'Recomendaciones de Apoyo', href: '/dashboard/estudiante?tab=recomendaciones', icon: <BookOpen className="h-5 w-5" /> },
     { label: 'Becas Disponibles', href: '/dashboard/estudiante?tab=becas', icon: <Gift className="h-5 w-5" /> },
     { label: 'Trámites de Apoyo', href: '/dashboard/estudiante?tab=tramites', icon: <BookOpen className="h-5 w-5" /> },
+    { label: 'Oportunidades Laborales', href: '/dashboard/estudiante?tab=oportunidades', icon: <Briefcase className="h-5 w-5" /> },
     { label: 'Responder Encuesta', href: '/dashboard/estudiante?tab=encuesta', icon: <ClipboardList className="h-5 w-5" /> },
     { label: 'Mis Alertas Académicas', href: '/dashboard/estudiante?tab=alertas', icon: <AlertCircle className="h-5 w-5" /> },
   ]
@@ -476,7 +561,7 @@ export default function EstudiantePage() {
       <div className="max-w-4xl">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground">Bienvenido, Estudiante</h1>
-          <p className="text-foreground/70">Gestiona tus solicitudes de tutoría, becas, recomendaciones, encuestas y alertas académicas</p>
+          <p className="text-foreground/70">Gestiona tus solicitudes de tutoría, becas, oportunidades laborales, recomendaciones, encuestas y alertas académicas</p>
           <div className="mt-4 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-4">
             <div className="flex items-start gap-3">
               <TrendingUp className="mt-1 h-5 w-5 text-yellow-400" />
@@ -495,6 +580,7 @@ export default function EstudiantePage() {
             { id: 'recomendaciones', label: 'Recomendaciones de Apoyo' },
             { id: 'becas', label: 'Becas Disponibles' },
             { id: 'tramites', label: 'Trámites de Apoyo' },
+            { id: 'oportunidades', label: 'Oportunidades Laborales' },
             { id: 'encuesta', label: 'Responder Encuesta' },
             { id: 'alertas', label: 'Mis Alertas' },
           ].map(tabItem => (
@@ -724,6 +810,116 @@ export default function EstudiantePage() {
           </div>
         )}
 
+
+        {tab === 'oportunidades' && (
+          <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
+            <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="flex items-center gap-2 text-xl font-bold text-foreground">
+                  <Briefcase className="h-5 w-5 text-primary" />
+                  Oportunidades Laborales
+                </h2>
+                <p className="mt-1 text-sm text-foreground/70">
+                  Consulta oportunidades laborales publicadas y relacionadas con tu carrera. La información se muestra ordenada por fecha de publicación.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-2 md:flex-row">
+                <Input
+                  value={searchOportunidad}
+                  onChange={(e) => setSearchOportunidad(e.target.value)}
+                  placeholder="Buscar por empresa, cargo o carrera..."
+                  className="border-primary/20 bg-background/50 md:w-72"
+                />
+
+                <select
+                  value={filtroModalidad}
+                  onChange={(e) => setFiltroModalidad(e.target.value)}
+                  className={selectClass}
+                >
+                  <option value="TODAS">Todas las modalidades</option>
+                  <option value="REMOTO">Remoto</option>
+                  <option value="HIBRIDO">Híbrido</option>
+                  <option value="PRESENCIAL">Presencial</option>
+                </select>
+              </div>
+            </div>
+
+            {loadingOportunidades ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
+              </div>
+            ) : filteredOportunidadesLaborales.length === 0 ? (
+              <div className="rounded-xl border border-primary/20 bg-background/30 p-8 text-center">
+                <Briefcase className="mx-auto mb-3 h-12 w-12 text-foreground/20" />
+                <p className="text-sm text-foreground/60">
+                  No hay oportunidades laborales publicadas por el momento.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {filteredOportunidadesLaborales.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-xl border border-primary/20 bg-background/30 p-6 transition hover:border-primary/40 hover:bg-primary/5"
+                  >
+                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <h3 className="text-lg font-bold text-foreground">
+                          {item.cargo || 'Cargo no especificado'}
+                        </h3>
+                        <p className="mt-1 text-sm font-semibold text-primary">
+                          {item.empresa || 'Empresa no registrada'}
+                        </p>
+                        <p className="mt-1 text-sm text-foreground/60">
+                          {item.carrera_relacionada || currentStudent?.carrera || 'Carrera relacionada no especificada'}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                          {item.modalidad || 'Modalidad no definida'}
+                        </span>
+                        <span className="rounded-full border border-green-500/20 bg-green-500/10 px-3 py-1 text-xs font-semibold text-green-500">
+                          {item.estado || 'Publicada'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="mt-4 text-sm leading-relaxed text-foreground/75">
+                      {item.descripcion || 'No se registró descripción para esta oportunidad.'}
+                    </p>
+
+                    <div className="mt-4 flex flex-col gap-3 border-t border-primary/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-xs text-foreground/50">
+                        Publicado:{' '}
+                        {item.fecha_publicacion
+                          ? new Date(item.fecha_publicacion).toLocaleDateString('es-PE')
+                          : 'Fecha no registrada'}
+                      </p>
+
+                      {item.enlace ? (
+                        <a
+                          href={item.enlace}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-secondary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+                        >
+                          Ver oportunidad
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      ) : (
+                        <Button type="button" variant="outline" disabled>
+                          Sin enlace disponible
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {tab === 'encuesta' && (
           <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 backdrop-blur-xl">
