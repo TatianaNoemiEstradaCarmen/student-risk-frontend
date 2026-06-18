@@ -174,13 +174,18 @@ export default function EstudiantePage() {
     const loadCurrentStudent = async () => {
       if (typeof window === 'undefined') return
 
-      const authEmail = sessionStorage.getItem('auth_email')
-      if (!authEmail) return
+      const correoSesion =
+        sessionStorage.getItem('auth_email') ||
+        sessionStorage.getItem('userEmail') ||
+        sessionStorage.getItem('email') ||
+        'student@edu.com'
+
+      const correoNormalizado = correoSesion.trim().toLowerCase()
 
       const { data, error } = await supabase
         .from('estudiantes')
-        .select('id, nombre, codigo, correo, carrera, nivel_riesgo')
-        .eq('correo', authEmail)
+        .select('*')
+        .ilike('correo', correoNormalizado)
         .maybeSingle()
 
       if (error) {
@@ -189,7 +194,13 @@ export default function EstudiantePage() {
         return
       }
 
-      setCurrentStudent(data || null)
+      if (!data) {
+        console.warn(`No se encontró estudiante con correo: ${correoNormalizado}`)
+        setCurrentStudent(null)
+        return
+      }
+
+      setCurrentStudent(data as CurrentStudent)
     }
 
     loadCurrentStudent()
@@ -358,18 +369,43 @@ export default function EstudiantePage() {
       return
     }
 
-    if (!currentStudent) {
-      setSurveyMessage('No se encontró el estudiante asociado a la sesión. Verifica que el correo del login exista en la tabla estudiantes.')
-      return
-    }
-
     setSavingSurvey(true)
 
-    const nivelRiesgo = currentStudent.nivel_riesgo || 'No definido'
+    let estudianteEncuesta = currentStudent
+
+    if (!estudianteEncuesta) {
+      const correoSesion =
+        sessionStorage.getItem('auth_email') ||
+        sessionStorage.getItem('userEmail') ||
+        sessionStorage.getItem('email') ||
+        'student@edu.com'
+
+      const correoNormalizado = correoSesion.trim().toLowerCase()
+
+      const { data, error } = await supabase
+        .from('estudiantes')
+        .select('*')
+        .ilike('correo', correoNormalizado)
+        .maybeSingle()
+
+      if (error || !data) {
+        console.error('Error buscando estudiante para encuesta:', error)
+        setSurveyMessage(
+          `No se encontró el estudiante con correo ${correoNormalizado}. Verifica que exista en la tabla estudiantes de Supabase.`
+        )
+        setSavingSurvey(false)
+        return
+      }
+
+      estudianteEncuesta = data as CurrentStudent
+      setCurrentStudent(data as CurrentStudent)
+    }
+
+    const nivelRiesgo = estudianteEncuesta.nivel_riesgo || 'No definido'
 
     const respuestas = [
       {
-        estudiante_id: currentStudent.id,
+        estudiante_id: estudianteEncuesta.id,
         pregunta: '¿Tienes dificultades para asistir regularmente a clases?',
         respuesta: respuestaAsistencia.trim(),
         categoria: 'Académica',
@@ -377,7 +413,7 @@ export default function EstudiantePage() {
         nivel_riesgo: nivelRiesgo,
       },
       {
-        estudiante_id: currentStudent.id,
+        estudiante_id: estudianteEncuesta.id,
         pregunta: '¿Tu situación económica afecta tu continuidad académica?',
         respuesta: respuestaEconomica.trim(),
         categoria: 'Económica',
@@ -385,7 +421,7 @@ export default function EstudiantePage() {
         nivel_riesgo: nivelRiesgo,
       },
       {
-        estudiante_id: currentStudent.id,
+        estudiante_id: estudianteEncuesta.id,
         pregunta: '¿Cuentas con apoyo familiar para continuar tus estudios?',
         respuesta: respuestaPersonal.trim(),
         categoria: 'Personal',
@@ -398,7 +434,7 @@ export default function EstudiantePage() {
     const { error: deleteError } = await supabase
       .from('respuestas_encuesta')
       .delete()
-      .eq('estudiante_id', currentStudent.id)
+      .eq('estudiante_id', estudianteEncuesta.id)
 
     if (deleteError) {
       console.error('Error eliminando respuestas anteriores:', deleteError.message)
@@ -778,7 +814,7 @@ export default function EstudiantePage() {
               <Button
                 type="button"
                 onClick={guardarEncuesta}
-                disabled={savingSurvey || !currentStudent}
+                disabled={savingSurvey}
                 className="bg-gradient-to-r from-primary to-secondary"
               >
                 <Save className="mr-2 h-4 w-4" />
