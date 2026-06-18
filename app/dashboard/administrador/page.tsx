@@ -30,6 +30,7 @@ import { RiskCard } from '@/components/dashboard/risk-card'
 import { RiskFactorsBadge } from '@/components/dashboard/risk-factors-badge'
 import type { RiskFactor } from '@/components/dashboard/risk-factors-badge'
 import { supabase } from '@/src/lib/supabase'
+import AIAnalisisDesercion from '@/components/admin/AIAnalisisDesercion'
 
 import {
   Select,
@@ -51,6 +52,7 @@ export default function AdministradorPage() {
     | 'academico'
     | 'tramitesApoyo'
     | 'importacion'
+    | 'analisisIA'
   >('estudiantes')
 
   const [students, setStudents] = useState<any[]>([])
@@ -458,6 +460,8 @@ export default function AdministradorPage() {
     { label: 'Oportunidades Laborales', href: '/dashboard/administrador/oportunidades', icon: <Briefcase className="h-5 w-5" /> },
     { label: 'Configuración', href: '/dashboard/administrador?tab=config', icon: <Settings className="h-5 w-5" /> },
     { label: 'Importar Datos', href: '/dashboard/administrador?tab=importacion', icon: <Plus className="h-5 w-5" /> },
+    { label: 'Análisis IA', href: '/dashboard/administrador?tab=analisisIA', icon: <BarChart3 className="h-5 w-5" />
+    },
   ]
 
   const currentRole = userRoles[0]?.role || 'estudiante'
@@ -487,6 +491,7 @@ export default function AdministradorPage() {
             { id: 'academico', label: 'Registro Académico' },
             { id: 'tramitesApoyo', label: 'Trámites de Apoyo' },
             { id: 'reportes', label: 'Reportes' },
+            { id: 'analisisIA', label: 'Análisis IA' },
           ].map(tabItem => (
             <button
               key={tabItem.id}
@@ -861,6 +866,10 @@ export default function AdministradorPage() {
               </tbody>
             </table>
           </div>
+        )}
+
+        {tab === 'analisisIA' && (
+          <AIAnalisisDesercion />
         )}
 
         {/* ── REPORTES ── */}

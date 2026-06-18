@@ -65,42 +65,75 @@ function TutorContent() {
 
   // ─── Carga solicitudes desde Supabase (Aporte del equipo) ───
   useEffect(() => {
-  async function fetchRespuestasEncuesta() {
-    setLoadingResponses(true)
-
-    const { data, error } = await supabase
-      .from('respuestas_encuesta')
-      .select(`
-        id,
-        estudiante_id,
-        pregunta,
-        respuesta,
-        categoria,
-        causa_detectada,
-        nivel_riesgo,
-        fecha_respuesta,
-        estudiantes:estudiante_id (
+    async function fetchSolicitudes() {
+      const { data, error } = await supabase
+        .from('solicitudes_tutoria')
+        .select(`
           id,
-          nombre,
-          codigo,
-          correo,
-          carrera
-        )
-      `)
-      .order('fecha_respuesta', { ascending: false })
+          motivo,
+          urgencia,
+          telefono,
+          modalidad,
+          estado,
+          tipo_ayuda,
+          fecha_solicitud,
+          estudiantes:estudiante_id (
+            id,
+            nombre,
+            correo,
+            carrera,
+            codigo
+          )
+        `)
+        .order('fecha_solicitud', { ascending: false })
 
-    if (error) {
-      console.error('Error respuestas encuesta:', error.message)
-      setSurveyResponses([])
-    } else {
-      setSurveyResponses(data || [])
+      if (!error && data) {
+        setRequests(data)
+      } else if (error) {
+        console.error('Error solicitudes:', error.message)
+      }
+    }
+    fetchSolicitudes()
+  }, [])
+
+  // ─── Carga respuestas de encuesta desde Supabase ───
+  useEffect(() => {
+    async function fetchRespuestasEncuesta() {
+      setLoadingResponses(true)
+
+      const { data, error } = await supabase
+        .from('respuestas_encuesta')
+        .select(`
+          id,
+          estudiante_id,
+          pregunta,
+          respuesta,
+          categoria,
+          causa_detectada,
+          nivel_riesgo,
+          fecha_respuesta,
+          estudiantes:estudiante_id (
+            id,
+            nombre,
+            codigo,
+            correo,
+            carrera
+          )
+        `)
+        .order('fecha_respuesta', { ascending: false })
+
+      if (error) {
+        console.error('Error respuestas encuesta:', error.message)
+        setSurveyResponses([])
+      } else {
+        setSurveyResponses(data || [])
+      }
+
+      setLoadingResponses(false)
     }
 
-    setLoadingResponses(false)
-  }
-
-  fetchRespuestasEncuesta()
-}, [])
+    fetchRespuestasEncuesta()
+  }, [])
 
   // ─── Carga alertas desde Supabase (Combinado HU-12 + Aporte equipo) ───
   useEffect(() => {
@@ -654,7 +687,6 @@ function TutorContent() {
             )}
           </div>
         )}
-
 
       </div>
     </SidebarLayout>
