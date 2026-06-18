@@ -52,7 +52,7 @@ export default function AdministradorPage() {
     | 'academico'
     | 'tramitesApoyo'
     | 'importacion'
-    | 'LabIA'
+    | 'labIA'
   >('estudiantes')
 
   const [students, setStudents] = useState<any[]>([])
@@ -866,7 +866,7 @@ export default function AdministradorPage() {
           </div>
         )}
 
-        {tab === 'LabIA' && (
+        {tab === 'labIA' && (
           <LabIA />
         )}
 
